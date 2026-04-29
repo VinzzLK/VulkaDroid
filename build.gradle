@@ -3,55 +3,61 @@ plugins {
     id 'maven-publish'
 }
 
-version = '1.0.0'
-group = 'net.vulkadroid'
+version = project.mod_version
+group = project.maven_group
 
-repositories {
-    mavenCentral()
-    maven { url "https://maven.fabricmc.net/" }
-    maven { url "https://jitpack.io" }
-    google()
+base {
+    archivesName = project.archives_base_name
 }
 
-// Kita pake fitur 'include' bawaan Loom, gak perlu ShadowJar
+repositories {
+    // Tambahkan repository jika perlu library tambahan
+    mavenCentral()
+}
+
 dependencies {
+    // Setup Minecraft & Mappings
     minecraft "com.mojang:minecraft:1.21.1"
-    mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:0.14.14"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:0.102.0+1.21.1"
-
-    // LWJGL API
-    def lwjglVer = "3.3.3"
-    def modules = ["", "-vulkan", "-vma", "-glfw", "-opengl", "-stb", "-assimp", "-jemalloc", "-shaderc", "-tinyfd"]
+    mappings lore.officialMojangMappings() // Menggunakan Official Mojang Mappings
     
-    modules.each { 
-        // 'implementation' buat compile, 'include' buat masukin ke JAR hasil build
-        implementation "org.lwjgl:lwjgl${it}:${lwjglVer}"
-        include "org.lwjgl:lwjgl${it}:${lwjglVer}"
-    }
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-    implementation "org.joml:joml:1.10.5"
-    include "org.joml:joml:1.10.5"
+    // Opsional: Fabric API (Hapus jika mod lu gak butuh library Fabric API)
+    // modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 }
 
 processResources {
     inputs.property "version", project.version
+
     filesMatching("fabric.mod.json") {
         expand "version": project.version
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.release = 21
+    it.options.release = 21
+    // INI KUNCINYA: Mencegah error "Unable to locate obfuscation mapping" di GitHub/Termux
+    it.options.compilerArgs << "-Xlint:all" << "-AaddExports=true"
 }
 
 java {
+    withSourcesJar()
+
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}" }
+        rename { "${it}_${project.archivesName}" }
+    }
+}
+
+// Konfigurasi Mixin
+loom {
+    accessWidenerPath = file("src/main/resources/vulkadroid.accesswidener") // Sesuaikan jika ada AW
+
+    mixin {
+        defaultRefmapName = "vulkadroid-refmap.json"
     }
 }
