@@ -19,7 +19,6 @@
     "LightTextureMixin",
     "OverlayTextureMixin",
     "GuiMixin",
-    "ItemRendererMixin",
     "BlockRenderDispatcherMixin",
     "ChunkRenderDispatcherMixin",
     "SectionRenderDispatcherMixin",
