@@ -1,6 +1,7 @@
 package net.vulkadroid.mixin;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.vulkadroid.vulkan.VRenderSystem;
@@ -75,7 +76,8 @@ public class RenderSystemMixin {
 
     @Inject(method = "setShaderTexture", at = @At("HEAD"), cancellable = true, remap = false)
     private static void setShaderTexture(int index, ResourceLocation id, CallbackInfo ci) {
-        VRenderSystem.setShaderTexture(index, id); 
+        int textureId = Minecraft.getInstance().getTextureManager().getTexture(id).getId();
+        VRenderSystem.setShaderTexture(index, textureId);
         ci.cancel();
     }
 
