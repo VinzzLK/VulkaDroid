@@ -2,7 +2,7 @@ package net.vulkadroid.mixin;
 
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -18,7 +18,7 @@ public class ItemRendererMixin {
     @Inject(method = "render", at = @At("HEAD"))
     private void onRender(ItemStack stack, ItemDisplayContext displayContext, boolean bl,
                           PoseStack poseStack, MultiBufferSource bufferSource, int i, int j,
-                          net.minecraft.class_1087 arg, CallbackInfo ci) {
+                          Entity entity, CallbackInfo ci) {
         if (!net.vulkadroid.Initializer.isInitialized()) return;
         PipelineManager.bindPipeline("entity");
     }
