@@ -35,23 +35,6 @@ public class Vulkan {
     private static long surface = VK_NULL_HANDLE;
     private static boolean initialized = false;
 
-    // Vulkan extensions required for Android
-    private static final String[] ANDROID_INSTANCE_EXTENSIONS = {
-        KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME,
-        VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
-        "VK_KHR_get_physical_device_properties2",
-        "VK_EXT_swapchain_colorspace"
-    };
-
-    private static final String[] DESKTOP_INSTANCE_EXTENSIONS = {
-        KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME,
-        "VK_KHR_win32_surface",
-        "VK_KHR_xcb_surface",
-        "VK_KHR_xlib_surface",
-        "VK_KHR_wayland_surface",
-        "VK_KHR_get_physical_device_properties2"
-    };
-
     private static final String[] VALIDATION_LAYERS = {
         "VK_LAYER_KHRONOS_validation"
     };
@@ -64,7 +47,14 @@ public class Vulkan {
         DeviceManager.initialize(instance);
         MemoryManager.initialize(DeviceManager.getPhysicalDevice(), DeviceManager.getDevice(), instance);
         SwapChain.initialize();
-        RenderPass.initialize();
+
+        // Hanya init RenderPass kalau SwapChain benar-benar siap
+        if (SwapChain.getHandle() != VK_NULL_HANDLE && SwapChain.getImageViews() != null) {
+            RenderPass.initialize();
+        } else {
+            Initializer.LOGGER.warn("SwapChain not ready, skipping RenderPass initialization");
+        }
+
         Synchronization.initialize();
 
         initialized = true;
@@ -73,7 +63,6 @@ public class Vulkan {
 
     private static void createInstance() {
         try (MemoryStack stack = stackPush()) {
-            // Application info
             VkApplicationInfo appInfo = VkApplicationInfo.calloc(stack);
             appInfo.sType(VK_STRUCTURE_TYPE_APPLICATION_INFO);
             appInfo.pApplicationName(stack.UTF8Safe("Minecraft"));
@@ -82,7 +71,6 @@ public class Vulkan {
             appInfo.engineVersion(VK_MAKE_VERSION(1, 0, 0));
             appInfo.apiVersion(VK12.VK_API_VERSION_1_2);
 
-            // Collect extensions
             List<String> extensions = getRequiredInstanceExtensions();
             PointerBuffer pExtensions = stack.mallocPointer(extensions.size());
             for (String ext : extensions) {
@@ -90,7 +78,6 @@ public class Vulkan {
             }
             pExtensions.flip();
 
-            // Validation layers
             PointerBuffer pLayers = null;
             if (ENABLE_VALIDATION && checkValidationLayerSupport()) {
                 pLayers = stack.mallocPointer(VALIDATION_LAYERS.length);
@@ -108,7 +95,6 @@ public class Vulkan {
                 createInfo.ppEnabledLayerNames(pLayers);
             }
 
-            // Debug messenger for instance creation/destruction
             if (ENABLE_VALIDATION) {
                 VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = VkDebugUtilsMessengerCreateInfoEXT.calloc(stack);
                 populateDebugMessengerCreateInfo(debugCreateInfo);
@@ -133,13 +119,11 @@ public class Vulkan {
             extensions.add(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
         } else {
             extensions.add(KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME);
-            // Platform-specific surfaces are added by DeviceManager
         }
         extensions.add("VK_KHR_get_physical_device_properties2");
         if (ENABLE_VALIDATION) {
             extensions.add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
-        // Filter to only available extensions
         return filterAvailableExtensions(extensions);
     }
 

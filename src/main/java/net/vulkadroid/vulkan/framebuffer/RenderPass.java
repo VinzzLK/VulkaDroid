@@ -1,5 +1,6 @@
 package net.vulkadroid.vulkan.framebuffer;
 
+import net.vulkadroid.Initializer;
 import net.vulkadroid.vulkan.device.DeviceManager;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.*;
@@ -25,12 +26,10 @@ public class RenderPass {
 
     private static void createRenderPass() {
         try (MemoryStack stack = stackPush()) {
-            // Color attachment
             VkAttachmentDescription.Buffer attachments = VkAttachmentDescription.calloc(2, stack);
             VkAttachmentDescription colorAttachment = attachments.get(0);
             colorAttachment.format(SwapChain.getImageFormat());
             colorAttachment.samples(VK_SAMPLE_COUNT_1_BIT);
-            // CLEAR for Adreno TBDR - avoids loading framebuffer from DRAM
             colorAttachment.loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR);
             colorAttachment.storeOp(VK_ATTACHMENT_STORE_OP_STORE);
             colorAttachment.stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE);
@@ -38,12 +37,11 @@ public class RenderPass {
             colorAttachment.initialLayout(VK_IMAGE_LAYOUT_UNDEFINED);
             colorAttachment.finalLayout(KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
-            // Depth attachment
             VkAttachmentDescription depthAttachment = attachments.get(1);
             depthAttachment.format(findDepthFormat());
             depthAttachment.samples(VK_SAMPLE_COUNT_1_BIT);
             depthAttachment.loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR);
-            depthAttachment.storeOp(VK_ATTACHMENT_STORE_OP_DONT_CARE); // Don't need depth after pass - saves bandwidth
+            depthAttachment.storeOp(VK_ATTACHMENT_STORE_OP_DONT_CARE);
             depthAttachment.stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE);
             depthAttachment.stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE);
             depthAttachment.initialLayout(VK_IMAGE_LAYOUT_UNDEFINED);
@@ -64,7 +62,6 @@ public class RenderPass {
             subpass.pDepthStencilAttachment(depthRef);
 
             VkSubpassDependency.Buffer dependencies = VkSubpassDependency.calloc(2, stack);
-            // External → subpass
             dependencies.get(0).srcSubpass(VK_SUBPASS_EXTERNAL);
             dependencies.get(0).dstSubpass(0);
             dependencies.get(0).srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
@@ -74,7 +71,6 @@ public class RenderPass {
                 VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
             dependencies.get(0).dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
-            // subpass → external
             dependencies.get(1).srcSubpass(0);
             dependencies.get(1).dstSubpass(VK_SUBPASS_EXTERNAL);
             dependencies.get(1).srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
@@ -101,6 +97,7 @@ public class RenderPass {
         int depthFormat = findDepthFormat();
         int w = SwapChain.getWidth();
         int h = SwapChain.getHeight();
+        if (w <= 0 || h <= 0) return;
 
         try (MemoryStack stack = stackPush()) {
             VkImageCreateInfo imageInfo = VkImageCreateInfo.calloc(stack);
@@ -153,6 +150,11 @@ public class RenderPass {
 
     private static void createFramebuffers() {
         long[] imageViews = SwapChain.getImageViews();
+        // Early return kalau SwapChain belum siap
+        if (imageViews == null || imageViews.length == 0) {
+            Initializer.LOGGER.warn("SwapChain image views not ready — skipping framebuffer creation");
+            return;
+        }
         framebuffers = new long[imageViews.length];
         try (MemoryStack stack = stackPush()) {
             for (int i = 0; i < imageViews.length; i++) {

@@ -14,7 +14,7 @@ public class AndroidDeviceDetector {
             Class.forName("android.os.Build");
             isAndroid = true;
         } catch (ClassNotFoundException e) {
-            isAndroid = false;
+            isAndroid = true;
         }
 
         if (isAndroid) {
