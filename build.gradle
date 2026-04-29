@@ -3,7 +3,6 @@ plugins {
     id 'maven-publish'
 }
 
-// Hardcoded version biar gak error "unknown property"
 version = "1.0.0"
 group = "net.vulkadroid"
 
@@ -20,14 +19,10 @@ dependencies {
     // Setup Minecraft 1.21.1
     minecraft "com.mojang:minecraft:1.21.1"
     
-    // Mappings Mojang Resmi
-    mappings lore.officialMojangMappings()
+    // GANTI BAGIAN INI: Pakai sintaks standar Loom buat Mojang Mappings
+    mappings loom.officialMojangMappings() 
     
-    // Fabric Loader
     modImplementation "net.fabricmc:fabric-loader:0.16.0"
-
-    // Jika butuh Fabric API, hilangkan tanda komen di bawah
-    // modImplementation "net.fabricmc.fabric-api:fabric-api:0.102.0+1.21.1"
 }
 
 processResources {
@@ -40,8 +35,8 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
     it.options.release = 21
-    // Mengurangi ketatnya pengecekan Mixin saat compile agar tidak error di GitHub Actions
-    it.options.compilerArgs << "-Xlint:all" << "-AaddExports=true" << "-Aremap=false"
+    // Filter argument biar gak tabrakan
+    it.options.compilerArgs << "-Xlint:all" << "-AaddExports=true"
 }
 
 java {
@@ -51,12 +46,10 @@ java {
 }
 
 jar {
-    // Menghapus error jika file LICENSE tidak ada
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 loom {
-    // Nama refmap yang akan di-generate
     mixin {
         defaultRefmapName = "vulkadroid-refmap.json"
     }
