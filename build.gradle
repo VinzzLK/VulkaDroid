@@ -1,0 +1,57 @@
+plugins {
+    id 'fabric-loom' version '1.11.8'
+    id 'maven-publish'
+}
+
+version = '1.0.0'
+group = 'net.vulkadroid'
+
+repositories {
+    mavenCentral()
+    maven { url "https://maven.fabricmc.net/" }
+    maven { url "https://jitpack.io" }
+    google()
+}
+
+// Kita pake fitur 'include' bawaan Loom, gak perlu ShadowJar
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.1"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:0.14.14"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.102.0+1.21.1"
+
+    // LWJGL API
+    def lwjglVer = "3.3.3"
+    def modules = ["", "-vulkan", "-vma", "-glfw", "-opengl", "-stb", "-assimp", "-jemalloc", "-shaderc", "-tinyfd"]
+    
+    modules.each { 
+        // 'implementation' buat compile, 'include' buat masukin ke JAR hasil build
+        implementation "org.lwjgl:lwjgl${it}:${lwjglVer}"
+        include "org.lwjgl:lwjgl${it}:${lwjglVer}"
+    }
+
+    implementation "org.joml:joml:1.10.5"
+    include "org.joml:joml:1.10.5"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.archivesBaseName}" }
+    }
+}

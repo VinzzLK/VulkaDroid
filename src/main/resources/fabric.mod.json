@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "vulkadroid",
+  "version": "${version}",
+  "name": "VulkaDroid",
+  "description": "VulkaDroid replaces Minecraft's OpenGL rendering engine with Vulkan for significantly better performance. Optimized for Android (Poco F3 / Adreno 650).",
+  "authors": ["KevinZXO_"],
+  "contact": {
+    "homepage": "https://github.com/KevinZXO_/VulkaDroid",
+    "sources": "https://github.com/KevinZXO_/VulkaDroid"
+  },
+  "license": "LGPL-3.0",
+  "icon": "assets/vulkadroid/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "net.vulkadroid.Initializer"
+    ]
+  },
+  "mixins": [
+    "vulkadroid.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.14",
+    "minecraft": "~1.21.1",
+    "java": ">=21"
+  },
+  "suggests": {
+    "sodium": "*"
+  }
+}

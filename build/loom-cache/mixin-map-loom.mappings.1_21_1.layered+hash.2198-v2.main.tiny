@@ -1,0 +1,5 @@
+v1	named	intermediary
+FIELD	net/vulkadroid/mixin/LightTextureMixin	Lnet/minecraft/client/renderer/texture/DynamicTexture;	lightTexture	field_4138
+FIELD	net/vulkadroid/mixin/DynamicTextureMixin	Lcom/mojang/blaze3d/platform/NativeImage;	pixels	field_5200
+FIELD	net/vulkadroid/mixin/TextureAtlasMixin	I	width	field_43113
+FIELD	net/vulkadroid/mixin/TextureAtlasMixin	I	height	field_43114

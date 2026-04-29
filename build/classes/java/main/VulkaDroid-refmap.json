@@ -1,0 +1,196 @@
+{
+  "mappings": {
+    "net/vulkadroid/mixin/BlockEntityRenderDispatcherMixin": {
+      "render(Lnet/minecraft/world/level/block/entity/BlockEntity;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;)V": "Lnet/minecraft/class_824;method_3555(Lnet/minecraft/class_2586;FLnet/minecraft/class_4587;Lnet/minecraft/class_4597;)V"
+    },
+    "net/vulkadroid/mixin/ItemRendererMixin": {
+      "render": "Lnet/minecraft/class_918;method_23179(Lnet/minecraft/class_1799;Lnet/minecraft/class_811;ZLnet/minecraft/class_4587;Lnet/minecraft/class_4597;IILnet/minecraft/class_1087;)V"
+    },
+    "net/vulkadroid/mixin/MinecraftMixin": {
+      "resizeDisplay": "Lnet/minecraft/class_310;method_15993()V",
+      "runTick": "Lnet/minecraft/class_310;method_1523(Z)V",
+      "close": "Lnet/minecraft/class_310;close()V"
+    },
+    "net/vulkadroid/mixin/GuiMixin": {
+      "render": "Lnet/minecraft/class_329;method_1753(Lnet/minecraft/class_332;Lnet/minecraft/class_9779;)V"
+    },
+    "net/vulkadroid/mixin/BufferUploaderMixin": {
+      "drawWithShader": "Lnet/minecraft/class_286;method_43433(Lnet/minecraft/class_9801;)V"
+    },
+    "net/vulkadroid/mixin/ShaderInstanceMixin": {
+      "apply": "Lnet/minecraft/class_5944;method_34586()V",
+      "clear": "Lnet/minecraft/class_5944;method_34585()V"
+    },
+    "net/vulkadroid/mixin/EntityRenderDispatcherMixin": {
+      "render": "Lnet/minecraft/class_898;method_3954(Lnet/minecraft/class_1297;DDDFFLnet/minecraft/class_4587;Lnet/minecraft/class_4597;I)V"
+    },
+    "net/vulkadroid/mixin/MainTargetMixin": {
+      "blitToScreen(II)V": "Lnet/minecraft/class_276;method_1237(II)V"
+    },
+    "net/vulkadroid/mixin/TextureManagerMixin": {
+      "register(Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/client/renderer/texture/AbstractTexture;)V": "Lnet/minecraft/class_1060;method_4616(Lnet/minecraft/class_2960;Lnet/minecraft/class_1044;)V",
+      "release": "Lnet/minecraft/class_1060;method_4615(Lnet/minecraft/class_2960;)V"
+    },
+    "net/vulkadroid/mixin/FogRendererMixin": {
+      "setupFog": "Lnet/minecraft/class_758;method_3211(Lnet/minecraft/class_4184;Lnet/minecraft/class_758$class_4596;FZF)V",
+      "setupColor": "Lnet/minecraft/class_758;method_3210(Lnet/minecraft/class_4184;FLnet/minecraft/class_638;IF)V"
+    },
+    "net/vulkadroid/mixin/RenderSystemMixin": {
+      "blendFuncSeparate": "Lcom/mojang/blaze3d/systems/RenderSystem;blendFuncSeparate(Lcom/mojang/blaze3d/platform/GlStateManager$class_4535;Lcom/mojang/blaze3d/platform/GlStateManager$class_4534;Lcom/mojang/blaze3d/platform/GlStateManager$class_4535;Lcom/mojang/blaze3d/platform/GlStateManager$class_4534;)V",
+      "blendFunc": "Lcom/mojang/blaze3d/systems/RenderSystem;blendFunc(Lcom/mojang/blaze3d/platform/GlStateManager$class_4535;Lcom/mojang/blaze3d/platform/GlStateManager$class_4534;)V"
+    },
+    "net/vulkadroid/mixin/ParticleEngineMixin": {
+      "render": "Lnet/minecraft/class_702;method_3049(Lnet/minecraft/class_765;Lnet/minecraft/class_4184;F)V"
+    },
+    "net/vulkadroid/mixin/BlockRenderDispatcherMixin": {
+      "renderBreakingTexture": "Lnet/minecraft/class_776;method_23071(Lnet/minecraft/class_2680;Lnet/minecraft/class_2338;Lnet/minecraft/class_1920;Lnet/minecraft/class_4587;Lnet/minecraft/class_4588;)V"
+    },
+    "net/vulkadroid/mixin/VertexBufferMixin": {
+      "bind": "Lnet/minecraft/class_291;method_1353()V",
+      "drawWithShader": "Lnet/minecraft/class_291;method_34427(Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lnet/minecraft/class_5944;)V",
+      "upload": "Lnet/minecraft/class_291;method_1352(Lnet/minecraft/class_9801;)V"
+    },
+    "net/vulkadroid/mixin/CameraMixin": {
+      "setup": "Lnet/minecraft/class_4184;method_19321(Lnet/minecraft/class_1922;Lnet/minecraft/class_1297;ZZF)V"
+    },
+    "net/vulkadroid/mixin/LightTextureMixin": {
+      "tick": "Lnet/minecraft/class_765;method_3314()V"
+    },
+    "net/vulkadroid/mixin/FrustumMixin": {
+      "prepare": "Lnet/minecraft/class_4604;method_23088(DDD)V"
+    },
+    "net/vulkadroid/mixin/DebugRendererMixin": {
+      "render": "Lnet/minecraft/class_863;method_23099(Lnet/minecraft/class_4587;Lnet/minecraft/class_4597$class_4598;DDD)V"
+    },
+    "net/vulkadroid/mixin/WindowMixin": {
+      "setWindowed": "Lnet/minecraft/class_1041;method_36813(II)V",
+      "toggleFullScreen": "Lnet/minecraft/class_1041;method_4500()V"
+    },
+    "net/vulkadroid/mixin/AbstractTextureMixin": {
+      "releaseId": "Lnet/minecraft/class_1044;method_4528()V"
+    },
+    "net/vulkadroid/mixin/VertexFormatMixin": {
+      "clearBufferState": "Lnet/minecraft/class_293;method_22651()V",
+      "setupBufferState": "Lnet/minecraft/class_293;method_22649()V"
+    },
+    "net/vulkadroid/mixin/SimpleTextureMixin": {
+      "load": "Lnet/minecraft/class_1049;method_4625(Lnet/minecraft/class_3300;)V"
+    },
+    "net/vulkadroid/mixin/RenderTargetMixin": {
+      "blitToScreen": "Lnet/minecraft/class_276;method_1237(II)V",
+      "createBuffers": "Lnet/minecraft/class_276;method_1231(IIZ)V",
+      "destroyBuffers": "Lnet/minecraft/class_276;method_1238()V",
+      "unbindWrite": "Lnet/minecraft/class_276;method_1240()V",
+      "bindWrite": "Lnet/minecraft/class_276;method_1235(Z)V",
+      "bindRead": "Lnet/minecraft/class_276;method_35610()V"
+    },
+    "net/vulkadroid/mixin/GameRendererMixin": {
+      "loadEffect": "Lnet/minecraft/class_757;method_3168(Lnet/minecraft/class_2960;)V",
+      "processBlurEffect": "Lnet/minecraft/class_757;method_57796(F)V"
+    },
+    "net/vulkadroid/mixin/ViewAreaMixin": {
+      "repositionCamera": "Lnet/minecraft/class_769;method_3330(DD)V"
+    },
+    "net/vulkadroid/mixin/ChunkRenderDispatcherMixin": {
+      "dispose": "Lnet/minecraft/class_846;method_3619()V"
+    }
+  },
+  "data": {
+    "named:intermediary": {
+      "net/vulkadroid/mixin/BlockEntityRenderDispatcherMixin": {
+        "render(Lnet/minecraft/world/level/block/entity/BlockEntity;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;)V": "Lnet/minecraft/class_824;method_3555(Lnet/minecraft/class_2586;FLnet/minecraft/class_4587;Lnet/minecraft/class_4597;)V"
+      },
+      "net/vulkadroid/mixin/ItemRendererMixin": {
+        "render": "Lnet/minecraft/class_918;method_23179(Lnet/minecraft/class_1799;Lnet/minecraft/class_811;ZLnet/minecraft/class_4587;Lnet/minecraft/class_4597;IILnet/minecraft/class_1087;)V"
+      },
+      "net/vulkadroid/mixin/MinecraftMixin": {
+        "resizeDisplay": "Lnet/minecraft/class_310;method_15993()V",
+        "runTick": "Lnet/minecraft/class_310;method_1523(Z)V",
+        "close": "Lnet/minecraft/class_310;close()V"
+      },
+      "net/vulkadroid/mixin/GuiMixin": {
+        "render": "Lnet/minecraft/class_329;method_1753(Lnet/minecraft/class_332;Lnet/minecraft/class_9779;)V"
+      },
+      "net/vulkadroid/mixin/BufferUploaderMixin": {
+        "drawWithShader": "Lnet/minecraft/class_286;method_43433(Lnet/minecraft/class_9801;)V"
+      },
+      "net/vulkadroid/mixin/ShaderInstanceMixin": {
+        "apply": "Lnet/minecraft/class_5944;method_34586()V",
+        "clear": "Lnet/minecraft/class_5944;method_34585()V"
+      },
+      "net/vulkadroid/mixin/EntityRenderDispatcherMixin": {
+        "render": "Lnet/minecraft/class_898;method_3954(Lnet/minecraft/class_1297;DDDFFLnet/minecraft/class_4587;Lnet/minecraft/class_4597;I)V"
+      },
+      "net/vulkadroid/mixin/MainTargetMixin": {
+        "blitToScreen(II)V": "Lnet/minecraft/class_276;method_1237(II)V"
+      },
+      "net/vulkadroid/mixin/TextureManagerMixin": {
+        "register(Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/client/renderer/texture/AbstractTexture;)V": "Lnet/minecraft/class_1060;method_4616(Lnet/minecraft/class_2960;Lnet/minecraft/class_1044;)V",
+        "release": "Lnet/minecraft/class_1060;method_4615(Lnet/minecraft/class_2960;)V"
+      },
+      "net/vulkadroid/mixin/FogRendererMixin": {
+        "setupFog": "Lnet/minecraft/class_758;method_3211(Lnet/minecraft/class_4184;Lnet/minecraft/class_758$class_4596;FZF)V",
+        "setupColor": "Lnet/minecraft/class_758;method_3210(Lnet/minecraft/class_4184;FLnet/minecraft/class_638;IF)V"
+      },
+      "net/vulkadroid/mixin/RenderSystemMixin": {
+        "blendFuncSeparate": "Lcom/mojang/blaze3d/systems/RenderSystem;blendFuncSeparate(Lcom/mojang/blaze3d/platform/GlStateManager$class_4535;Lcom/mojang/blaze3d/platform/GlStateManager$class_4534;Lcom/mojang/blaze3d/platform/GlStateManager$class_4535;Lcom/mojang/blaze3d/platform/GlStateManager$class_4534;)V",
+        "blendFunc": "Lcom/mojang/blaze3d/systems/RenderSystem;blendFunc(Lcom/mojang/blaze3d/platform/GlStateManager$class_4535;Lcom/mojang/blaze3d/platform/GlStateManager$class_4534;)V"
+      },
+      "net/vulkadroid/mixin/ParticleEngineMixin": {
+        "render": "Lnet/minecraft/class_702;method_3049(Lnet/minecraft/class_765;Lnet/minecraft/class_4184;F)V"
+      },
+      "net/vulkadroid/mixin/BlockRenderDispatcherMixin": {
+        "renderBreakingTexture": "Lnet/minecraft/class_776;method_23071(Lnet/minecraft/class_2680;Lnet/minecraft/class_2338;Lnet/minecraft/class_1920;Lnet/minecraft/class_4587;Lnet/minecraft/class_4588;)V"
+      },
+      "net/vulkadroid/mixin/VertexBufferMixin": {
+        "bind": "Lnet/minecraft/class_291;method_1353()V",
+        "drawWithShader": "Lnet/minecraft/class_291;method_34427(Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lnet/minecraft/class_5944;)V",
+        "upload": "Lnet/minecraft/class_291;method_1352(Lnet/minecraft/class_9801;)V"
+      },
+      "net/vulkadroid/mixin/CameraMixin": {
+        "setup": "Lnet/minecraft/class_4184;method_19321(Lnet/minecraft/class_1922;Lnet/minecraft/class_1297;ZZF)V"
+      },
+      "net/vulkadroid/mixin/LightTextureMixin": {
+        "tick": "Lnet/minecraft/class_765;method_3314()V"
+      },
+      "net/vulkadroid/mixin/FrustumMixin": {
+        "prepare": "Lnet/minecraft/class_4604;method_23088(DDD)V"
+      },
+      "net/vulkadroid/mixin/DebugRendererMixin": {
+        "render": "Lnet/minecraft/class_863;method_23099(Lnet/minecraft/class_4587;Lnet/minecraft/class_4597$class_4598;DDD)V"
+      },
+      "net/vulkadroid/mixin/WindowMixin": {
+        "setWindowed": "Lnet/minecraft/class_1041;method_36813(II)V",
+        "toggleFullScreen": "Lnet/minecraft/class_1041;method_4500()V"
+      },
+      "net/vulkadroid/mixin/AbstractTextureMixin": {
+        "releaseId": "Lnet/minecraft/class_1044;method_4528()V"
+      },
+      "net/vulkadroid/mixin/VertexFormatMixin": {
+        "clearBufferState": "Lnet/minecraft/class_293;method_22651()V",
+        "setupBufferState": "Lnet/minecraft/class_293;method_22649()V"
+      },
+      "net/vulkadroid/mixin/SimpleTextureMixin": {
+        "load": "Lnet/minecraft/class_1049;method_4625(Lnet/minecraft/class_3300;)V"
+      },
+      "net/vulkadroid/mixin/RenderTargetMixin": {
+        "blitToScreen": "Lnet/minecraft/class_276;method_1237(II)V",
+        "createBuffers": "Lnet/minecraft/class_276;method_1231(IIZ)V",
+        "destroyBuffers": "Lnet/minecraft/class_276;method_1238()V",
+        "unbindWrite": "Lnet/minecraft/class_276;method_1240()V",
+        "bindWrite": "Lnet/minecraft/class_276;method_1235(Z)V",
+        "bindRead": "Lnet/minecraft/class_276;method_35610()V"
+      },
+      "net/vulkadroid/mixin/GameRendererMixin": {
+        "loadEffect": "Lnet/minecraft/class_757;method_3168(Lnet/minecraft/class_2960;)V",
+        "processBlurEffect": "Lnet/minecraft/class_757;method_57796(F)V"
+      },
+      "net/vulkadroid/mixin/ViewAreaMixin": {
+        "repositionCamera": "Lnet/minecraft/class_769;method_3330(DD)V"
+      },
+      "net/vulkadroid/mixin/ChunkRenderDispatcherMixin": {
+        "dispose": "Lnet/minecraft/class_846;method_3619()V"
+      }
+    }
+  }
+}

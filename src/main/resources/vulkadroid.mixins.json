@@ -1,0 +1,52 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.vulkadroid.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "LevelRendererMixin",
+    "RenderSystemMixin",
+    "GlStateManagerMixin",
+    "WindowMixin",
+    "MinecraftMixin",
+    "BufferBuilderMixin",
+    "VertexBufferMixin",
+    "ShaderInstanceMixin",
+    "TextureManagerMixin",
+    "RenderTargetMixin",
+    "FogRendererMixin",
+    "GameRendererMixin",
+    "LightTextureMixin",
+    "OverlayTextureMixin",
+    "GuiMixin",
+    "ItemRendererMixin",
+    "BlockRenderDispatcherMixin",
+    "ChunkRenderDispatcherMixin",
+    "SectionRenderDispatcherMixin",
+    "CompiledChunkMixin",
+    "ViewAreaMixin",
+    "BufferUploaderMixin",
+    "VertexFormatMixin",
+    "FrustumMixin",
+    "CameraMixin",
+    "BlockEntityRenderDispatcherMixin",
+    "EntityRenderDispatcherMixin",
+    "ParticleEngineMixin",
+    "DebugRendererMixin",
+    "TextureAtlasMixin",
+    "SpriteContentsMixin",
+    "DynamicTextureMixin",
+    "AbstractTextureMixin",
+    "SimpleTextureMixin",
+    "PostChainMixin",
+    "PostPassMixin",
+    "MainTargetMixin",
+    "RenderBuffersMixin"
+  ],
+  "mixins": [
+    "Matrix4fMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
