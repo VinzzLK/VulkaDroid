@@ -1,7 +1,7 @@
 package net.vulkadroid.mixin;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
@@ -17,8 +17,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
 
-    // remap = true (default) → Loom akan generate refmap entry:
-    // Mojang "renderChunkLayer" → intermediary "method_XXXXX"
     @Inject(method = "renderChunkLayer", at = @At("HEAD"), cancellable = true)
     private void onRenderChunkLayer(RenderType renderType,
             double x, double y, double z,
@@ -29,17 +27,23 @@ public class LevelRendererMixin {
         ci.cancel();
     }
 
+    // 1.21.1: PoseStack + float partialTick + long finishNanoTime
+    //         digabung jadi DeltaTracker, modelViewMatrix jadi param terpisah
     @Inject(method = "renderLevel", at = @At("HEAD"))
-    private void onRenderLevelHead(PoseStack poseStack, float partialTick,
-            long finishNanoTime, boolean renderBlockOutline,
-            Camera camera, GameRenderer gameRenderer,
-            LightTexture lightTexture, Matrix4f projectionMatrix,
+    private void onRenderLevelHead(
+            DeltaTracker deltaTracker,
+            boolean renderBlockOutline,
+            Camera camera,
+            GameRenderer gameRenderer,
+            LightTexture lightTexture,
+            Matrix4f modelViewMatrix,
+            Matrix4f projectionMatrix,
             CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         float[] proj = new float[16];
         float[] view = new float[16];
         projectionMatrix.get(proj);
-        poseStack.last().pose().get(view);
+        modelViewMatrix.get(view);
         net.vulkadroid.vulkan.VRenderSystem.setProjectionMatrix(proj);
         net.vulkadroid.vulkan.VRenderSystem.setModelViewMatrix(view);
     }

@@ -21,18 +21,22 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:0.16.0"
 
-    implementation "org.lwjgl:lwjgl:3.3.4"
-    implementation "org.lwjgl:lwjgl-vulkan:3.3.4"
+    // Core LWJGL - compileOnly, Zalith supply natives sendiri
+    // Jangan bundle/include, bakal crash symbol mismatch
+    compileOnly "org.lwjgl:lwjgl:3.3.4"
+    compileOnly "org.lwjgl:lwjgl-vulkan:3.3.4"
 
-    runtimeOnly "org.lwjgl:lwjgl:3.3.4:natives-linux"
-    runtimeOnly "org.lwjgl:lwjgl:3.3.4:natives-linux-arm64"
-    runtimeOnly "org.lwjgl:lwjgl:3.3.4:natives-linux-arm32"
+    // VMA - Zalith tidak supply, aman di-bundle
+    implementation "org.lwjgl:lwjgl-vma:3.3.3"
+    runtimeOnly "org.lwjgl:lwjgl-vma:3.3.3:natives-linux-arm64"
+    include "org.lwjgl:lwjgl-vma:3.3.3"
+    include "org.lwjgl:lwjgl-vma:3.3.3:natives-linux-arm64"
 
-    include "org.lwjgl:lwjgl:3.3.4"
-    include "org.lwjgl:lwjgl-vulkan:3.3.4"
-    include "org.lwjgl:lwjgl:3.3.4:natives-linux"
-    include "org.lwjgl:lwjgl:3.3.4:natives-linux-arm64"
-    include "org.lwjgl:lwjgl:3.3.4:natives-linux-arm32"
+    // Shaderc - Zalith tidak supply, aman di-bundle
+    implementation "org.lwjgl:lwjgl-shaderc:3.3.3"
+    runtimeOnly "org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux-arm64"
+    include "org.lwjgl:lwjgl-shaderc:3.3.3"
+    include "org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux-arm64"
 }
 
 processResources {
@@ -45,7 +49,6 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
     it.options.release = 21
-    it.options.compilerArgs << "-Xlint:all" << "-AaddExports=true"
 }
 
 java {
