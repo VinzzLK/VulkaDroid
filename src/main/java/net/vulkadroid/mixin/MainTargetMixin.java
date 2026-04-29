@@ -10,10 +10,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(RenderTarget.class)
 public abstract class MainTargetMixin {
     
-    // Perbaikan: Hapus parameter boolean if not exist di method target
     @Inject(method = "blitToScreen(II)V", at = @At("HEAD"), cancellable = true)
     private void onBlitToScreen(int width, int height, CallbackInfo ci) {
-        // Logic lu di sini
         ci.cancel();
     }
 }
