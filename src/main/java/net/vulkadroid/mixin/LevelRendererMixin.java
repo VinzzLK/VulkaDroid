@@ -6,6 +6,7 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.world.level.ChunkPos;
 import net.vulkadroid.Initializer;
 import net.vulkadroid.render.chunk.WorldRenderer;
 import org.joml.Matrix4f;
@@ -18,9 +19,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class LevelRendererMixin {
 
     @Inject(method = "renderChunkLayer", at = @At("HEAD"), cancellable = true)
-    private void onRenderChunkLayer(RenderType renderType,
+    private void onRenderChunkLayer(
+            RenderType renderType,
             double x, double y, double z,
-            Matrix4f frustumMatrix, Matrix4f projectionMatrix,
+            Matrix4f frustumMatrix,
+            Matrix4f projectionMatrix,
             CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         WorldRenderer.renderLayer(renderType, x, y, z, frustumMatrix, projectionMatrix);
@@ -28,7 +31,8 @@ public class LevelRendererMixin {
     }
 
     // 1.21.1: PoseStack + float partialTick + long finishNanoTime
-    //         digabung jadi DeltaTracker, modelViewMatrix jadi param terpisah
+    //         → digabung jadi DeltaTracker
+    //         modelViewMatrix sekarang param terpisah
     @Inject(method = "renderLevel", at = @At("HEAD"))
     private void onRenderLevelHead(
             DeltaTracker deltaTracker,
@@ -54,10 +58,11 @@ public class LevelRendererMixin {
         WorldRenderer.onWorldChanged();
     }
 
+    // 1.21.1: parameter berubah dari (int cx, int cz) → (ChunkPos chunkPos)
     @Inject(method = "onChunkLoaded", at = @At("TAIL"))
-    private void onChunkLoaded(int cx, int cz, CallbackInfo ci) {
+    private void onChunkLoaded(ChunkPos chunkPos, CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
-        WorldRenderer.onChunkLoaded(cx, cz);
+        WorldRenderer.onChunkLoaded(chunkPos.x, chunkPos.z);
     }
 
     @Inject(method = "setSectionDirty", at = @At("TAIL"))
