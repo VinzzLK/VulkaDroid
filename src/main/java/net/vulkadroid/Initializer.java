@@ -47,3 +47,7 @@ public void onInitializeClient() {
         initialized = false;
     }
 }
+
+public static boolean isInitialized() {
+        return initialized;
+    }
