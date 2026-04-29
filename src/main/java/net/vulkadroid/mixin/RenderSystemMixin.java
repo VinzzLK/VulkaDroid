@@ -73,8 +73,8 @@ public class RenderSystemMixin {
         ci.cancel();
     }
 
-    @Inject(method = "setShaderTexture(IILnet/minecraft/resources/ResourceLocation;)V", at = @At("HEAD"), cancellable = true, remap = false)
-    private static void setShaderTexture(int index, int id, CallbackInfo ci) {
+    @Inject(method = "setShaderTexture", at = @At("HEAD"), cancellable = true, remap = false)
+    private static void setShaderTexture(int index, ResourceLocation id, CallbackInfo ci) {
         VRenderSystem.setShaderTexture(index, id); 
         ci.cancel();
     }

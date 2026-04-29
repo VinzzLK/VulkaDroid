@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(RenderTarget.class)
 public class RenderTargetMixin {
+
     @Inject(method = "createBuffers", at = @At("HEAD"), cancellable = true)
     private void onCreateBuffers(int w, int h, boolean bl, CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
@@ -16,28 +17,33 @@ public class RenderTargetMixin {
         self.width = w; self.height = h;
         ci.cancel();
     }
+
     @Inject(method = "bindWrite", at = @At("HEAD"), cancellable = true)
     private void onBindWrite(boolean bl, CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         ci.cancel();
     }
+
     @Inject(method = "unbindWrite", at = @At("HEAD"), cancellable = true)
     private void onUnbindWrite(CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         ci.cancel();
     }
+
     @Inject(method = "bindRead", at = @At("HEAD"), cancellable = true)
     private void onBindRead(CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         ci.cancel();
     }
+
     @Inject(method = "destroyBuffers", at = @At("HEAD"), cancellable = true)
     private void onDestroyBuffers(CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         ci.cancel();
     }
+
     @Inject(method = "blitToScreen", at = @At("HEAD"), cancellable = true)
-    private void onBlitToScreen(int w, int h, boolean bl, CallbackInfo ci) {
+    private void onBlitToScreen(int w, int h, CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         ci.cancel();
     }
