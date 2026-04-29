@@ -1,5 +1,5 @@
 {
-  "required": true,
+  "required": false,
   "minVersion": "0.8",
   "package": "net.vulkadroid.mixin",
   "compatibilityLevel": "JAVA_21",
@@ -46,6 +46,7 @@
     "Matrix4fMixin"
   ],
   "injectors": {
-    "defaultRequire": 1
-  }
+    "defaultRequire": 0
+  },
+  "refmap": "vulkadroid-refmap.json"
 }
