@@ -28,6 +28,14 @@ public class VTextureSelector {
         locationToGlId.put(location, glId);
     }
 
+    public static void removeLocation(ResourceLocation location) {
+        Integer glId = locationToGlId.remove(location);
+        if (glId != null) {
+            VulkanImage img = glIdToVulkanImage.remove(glId);
+            if (img != null) img.destroy();
+        }
+    }
+
     public static void unregisterTexture(int glId) {
         VulkanImage img = glIdToVulkanImage.remove(glId);
         if (img != null) img.destroy();

@@ -3,16 +3,19 @@ package net.vulkadroid.android;
 import net.vulkadroid.Initializer;
 
 public class AndroidDeviceDetector {
-    private static boolean isAndroid = false;
-    private static boolean isAdreno650 = false;
+    private static boolean isAndroid = true;
+    private static boolean isAdreno650 = true;
     private static String deviceInfo = "Unknown";
     private static String gpuRenderer = "Unknown";
 
     public static void detect() {
-        String osName = System.getProperty("os.name", "").toLowerCase();
-        String javaVm = System.getProperty("java.vm.name", "").toLowerCase();
-
-        isAndroid = osName.contains("android") || javaVm.contains("dalvik") || javaVm.contains("art");
+        // 1. Check if android.os.Build exists (true Android)
+        try {
+            Class.forName("android.os.Build");
+            isAndroid = true;
+        } catch (ClassNotFoundException e) {
+            isAndroid = false;
+        }
 
         if (isAndroid) {
             try {
@@ -21,17 +24,14 @@ public class AndroidDeviceDetector {
                 String gpuVersion   = getAndroidProp("ro.hardware.egl");
                 String hardware     = getAndroidProp("ro.hardware");
 
-                gpuRenderer = gpuVersion.isEmpty() ? hardware : gpuVersion;
+                gpuRenderer = (!gpuVersion.isEmpty()) ? gpuVersion : hardware;
                 deviceInfo  = model + " / " + board;
 
-                // Detect Adreno 650 (Snapdragon 870 / SM8250-AC or SM8250)
-                isAdreno650 = board.contains("kona") || board.contains("msmnile") ||
-                              hardware.toLowerCase().contains("adreno650") ||
-                              model.toLowerCase().contains("poco f3") ||
-                              model.toLowerCase().contains("mi 11") ||
-                              model.toLowerCase().contains("oneplus 9") ||
-                              gpuRenderer.toLowerCase().contains("adreno650") ||
-                              gpuRenderer.toLowerCase().contains("adreno 650");
+                String combined = (board + hardware + model + gpuRenderer).toLowerCase();
+                isAdreno650 = combined.contains("kona") || combined.contains("msmnile") ||
+                              combined.contains("adreno650") || combined.contains("adreno 650") ||
+                              combined.contains("poco f3") || combined.contains("mi 11") ||
+                              combined.contains("oneplus 9") || combined.contains("sm8250");
 
             } catch (Exception e) {
                 Initializer.LOGGER.warn("Failed to read Android device props: {}", e.getMessage());
