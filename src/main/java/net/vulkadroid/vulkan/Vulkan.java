@@ -7,6 +7,7 @@ import net.vulkadroid.vulkan.memory.MemoryManager;
 import net.vulkadroid.vulkan.framebuffer.SwapChain;
 import net.vulkadroid.vulkan.framebuffer.RenderPass;
 import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.Configuration;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.*;
 
@@ -114,18 +115,15 @@ public class Vulkan {
         }
 
         // ── Bypass vkCreateInstance wrapper yang panggil validate() ──────────
-        // vkCreateInstance() → nvkCreateInstance() → validate() → UNSAFE crash
-        // Kita panggil nvkCreateInstance langsung via reflection
+        // Masalah: nvkCreateInstance() → validate() → nenabledLayerCount() → UNSAFE field crash
+        // UNSAFE field tidak ada di custom LWJGL JAR dari vulkanmod-an-libs
+        //
+        // Fix: Panggil JNI.callPPPI langsung pakai function pointer dari VK global commands.
+        // Ini sepenuhnya skip semua Java wrapper + validate() milik LWJGL.
         PointerBuffer pInstance = stack.mallocPointer(1);
         int result;
-        try {
-            java.lang.reflect.Method nMethod = VK10.class.getDeclaredMethod(
-                "nvkCreateInstance", long.class, long.class, long.class);
-            nMethod.setAccessible(true);
-            result = (int) nMethod.invoke(null, ciAddr, NULL, memAddress(pInstance));
-        } catch (Exception reflectEx) {
-            throw new RuntimeException("Failed to invoke nvkCreateInstance via reflection", reflectEx);
-        }
+        long fp = resolveFunctionPointerVkCreateInstance();
+        result = org.lwjgl.system.JNI.callPPPI(ciAddr, NULL, memAddress(pInstance), fp);
 
         if (result != VK_SUCCESS) {
             throw new RuntimeException("Failed to create Vulkan instance. VkResult: " + result);
@@ -270,6 +268,54 @@ public class Vulkan {
             int ver = pVersion.get(0);
             return VK_VERSION_MAJOR(ver) + "." + VK_VERSION_MINOR(ver) + "." + VK_VERSION_PATCH(ver);
         }
+    }
+
+    /**
+     * Mendapatkan function pointer vkCreateInstance tanpa melalui LWJGL validate().
+     *
+     * Strategy:
+     *  1. Refleksi ke VK.getGlobalCommands() (LWJGL internal) untuk baca field long.
+     *     Ini aman karena kita TIDAK memanggil metode yang ada validate()-nya.
+     *  2. Fallback: Library.loadNative("vulkan") dan cari simbol manual.
+     */
+    private static long resolveFunctionPointerVkCreateInstance() {
+        // --- Strategy 1: LWJGL VK.getGlobalCommands().vkCreateInstance ---
+        try {
+            Class<?> vkClass = Class.forName("org.lwjgl.vulkan.VK");
+            java.lang.reflect.Method getGlobal = vkClass.getDeclaredMethod("getGlobalCommands");
+            getGlobal.setAccessible(true);
+            Object caps = getGlobal.invoke(null);
+            java.lang.reflect.Field field = caps.getClass().getDeclaredField("vkCreateInstance");
+            field.setAccessible(true);
+            long fp = field.getLong(caps);
+            if (fp != 0L) {
+                Initializer.LOGGER.debug("[VulkaDroid] vkCreateInstance FP via VK.getGlobalCommands: 0x{}", Long.toHexString(fp));
+                return fp;
+            }
+        } catch (Throwable e) {
+            Initializer.LOGGER.warn("[VulkaDroid] Strategy 1 (VK.getGlobalCommands) gagal: {}", e.getMessage());
+        }
+
+        // --- Strategy 2: Library.loadNative("vulkan") ---
+        try {
+            org.lwjgl.system.SharedLibrary lib =
+                org.lwjgl.system.Library.loadNative(
+                    Vulkan.class,
+                    "org.lwjgl.vulkan",
+                    org.lwjgl.system.Configuration.VULKAN_LIBRARY_NAME,
+                    "vulkan");
+            long fp = lib.getFunctionAddress("vkCreateInstance");
+            if (fp != 0L) {
+                Initializer.LOGGER.debug("[VulkaDroid] vkCreateInstance FP via Library.loadNative: 0x{}", Long.toHexString(fp));
+                return fp;
+            }
+        } catch (Throwable e) {
+            Initializer.LOGGER.warn("[VulkaDroid] Strategy 2 (Library.loadNative) gagal: {}", e.getMessage());
+        }
+
+        throw new RuntimeException(
+            "Tidak bisa mendapatkan vkCreateInstance function pointer. " +
+            "Pastikan libvulkan.so tersedia di LD_LIBRARY_PATH.");
     }
 
     public static void cleanup() {
