@@ -296,8 +296,18 @@ public class Vulkan {
                 org.lwjgl.system.MemoryUtil.memAddress(funcName), getProcFP);
 
         java.util.Set<String> extSet = new java.util.HashSet<>(exts);
-        // Constructor butuh 4 arg: (FunctionProvider, apiVersion, instanceExtensions, deviceExtensions)
-        VKCapabilitiesInstance caps = new VKCapabilitiesInstance(fp, VK12.VK_API_VERSION_1_2, extSet, new java.util.HashSet<>());
+        // Constructor VKCapabilitiesInstance bersifat package-private, harus pakai refleksi
+        VKCapabilitiesInstance caps;
+        try {
+            java.lang.reflect.Constructor<VKCapabilitiesInstance> ctor =
+                VKCapabilitiesInstance.class.getDeclaredConstructor(
+                    org.lwjgl.system.FunctionProvider.class, int.class,
+                    java.util.Set.class, java.util.Set.class);
+            ctor.setAccessible(true);
+            caps = ctor.newInstance(fp, VK12.VK_API_VERSION_1_2, extSet, new java.util.HashSet<>());
+        } catch (Exception e) {
+            throw new RuntimeException("Gagal buat VKCapabilitiesInstance via refleksi", e);
+        }
 
         // Set field 'capabilities' dari DispatchableHandleInstance
         setFieldInHierarchy(inst, "capabilities", caps);
