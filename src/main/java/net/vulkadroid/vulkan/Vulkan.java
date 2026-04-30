@@ -129,7 +129,9 @@ public class Vulkan {
             throw new RuntimeException("Failed to create Vulkan instance. VkResult: " + result);
         }
 
-        instance = new VkInstance(pInstance.get(0), createInfo);
+        // new VkInstance(handle, createInfo) juga crash: VkApplicationInfo.apiVersion() pakai UNSAFE
+        // Solusi: buat VkInstance via Unsafe.allocateInstance + set fields manual
+        instance = buildVkInstanceReflective(pInstance.get(0), extensions);
         Initializer.LOGGER.info("Vulkan instance created with {} extensions", extensions.size());
     }
 }
@@ -268,6 +270,75 @@ public class Vulkan {
             int ver = pVersion.get(0);
             return VK_VERSION_MAJOR(ver) + "." + VK_VERSION_MINOR(ver) + "." + VK_VERSION_PATCH(ver);
         }
+    }
+
+    /**
+     * Buat VkInstance TANPA memanggil konstruktor LWJGL standar.
+     * new VkInstance(handle, createInfo) → getInstanceCapabilities → VkApplicationInfo.apiVersion()
+     * → napiVersion() → UNSAFE field crash karena custom LWJGL JAR stripped.
+     *
+     * Fix: allocateInstance via JVM Unsafe, set fields 'address' dan 'capabilities' reflektif.
+     */
+    private static VkInstance buildVkInstanceReflective(long handle, List<String> exts) throws Exception {
+        sun.misc.Unsafe jvmUnsafe = getJvmUnsafe();
+
+        // Allocate tanpa constructor
+        @SuppressWarnings("unchecked")
+        VkInstance inst = (VkInstance) jvmUnsafe.allocateInstance(VkInstance.class);
+
+        // Set field 'address' dari Pointer.Default (superclass)
+        setFieldInHierarchy(inst, "address", handle);
+
+        // Bangun VKCapabilitiesInstance menggunakan vkGetInstanceProcAddr
+        long getProcFP = resolveVkGetInstanceProcAddr();
+        org.lwjgl.system.FunctionProvider fp = funcName ->
+            org.lwjgl.system.JNI.callPPP(handle,
+                org.lwjgl.system.MemoryUtil.memAddress(funcName), getProcFP);
+
+        java.util.Set<String> extSet = new java.util.HashSet<>(exts);
+        VKCapabilitiesInstance caps = new VKCapabilitiesInstance(fp, VK12.VK_API_VERSION_1_2, extSet);
+
+        // Set field 'capabilities' dari DispatchableHandleInstance
+        setFieldInHierarchy(inst, "capabilities", caps);
+
+        Initializer.LOGGER.info("[VulkaDroid] VkInstance built reflectively. Handle: 0x{}", Long.toHexString(handle));
+        return inst;
+    }
+
+    private static sun.misc.Unsafe getJvmUnsafe() throws Exception {
+        java.lang.reflect.Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        f.setAccessible(true);
+        return (sun.misc.Unsafe) f.get(null);
+    }
+
+    private static void setFieldInHierarchy(Object obj, String name, Object value) throws Exception {
+        Class<?> c = obj.getClass();
+        while (c != null) {
+            try {
+                java.lang.reflect.Field f = c.getDeclaredField(name);
+                f.setAccessible(true);
+                if (value instanceof Long) f.setLong(obj, (Long) value);
+                else f.set(obj, value);
+                return;
+            } catch (NoSuchFieldException e) { c = c.getSuperclass(); }
+        }
+        throw new NoSuchFieldException("Field '" + name + "' tidak ditemukan di " + obj.getClass().getName());
+    }
+
+    private static long resolveVkGetInstanceProcAddr() {
+        try {
+            Class<?> vkClass = Class.forName("org.lwjgl.vulkan.VK");
+            java.lang.reflect.Method m = vkClass.getDeclaredMethod("getGlobalCommands");
+            m.setAccessible(true);
+            Object globalCaps = m.invoke(null);
+            java.lang.reflect.Field f = globalCaps.getClass().getDeclaredField("vkGetInstanceProcAddr");
+            f.setAccessible(true);
+            long addr = f.getLong(globalCaps);
+            if (addr != 0L) return addr;
+        } catch (Throwable e) {
+            Initializer.LOGGER.warn("[VulkaDroid] resolveVkGetInstanceProcAddr gagal: {}", e.getMessage());
+        }
+        throw new RuntimeException("Tidak bisa resolve vkGetInstanceProcAddr");
     }
 
     /**
