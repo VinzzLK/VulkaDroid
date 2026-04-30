@@ -18,7 +18,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
 
-    @Inject(method = "renderChunkLayer", at = @At("HEAD"), cancellable = true)
+    // MC 1.21.1 descriptor: renderChunkLayer(RenderType, PoseStack, double, double, double, Matrix4f)
+    @Inject(method = "renderChunkLayer(Lnet/minecraft/client/renderer/RenderType;DDDLorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
+            at = @At("HEAD"), cancellable = true)
     private void onRenderChunkLayer(
             RenderType renderType,
             double x, double y, double z,
