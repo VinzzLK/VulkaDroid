@@ -131,7 +131,11 @@ public class Vulkan {
 
         // new VkInstance(handle, createInfo) juga crash: VkApplicationInfo.apiVersion() pakai UNSAFE
         // Solusi: buat VkInstance via Unsafe.allocateInstance + set fields manual
-        instance = buildVkInstanceReflective(pInstance.get(0), extensions);
+        try {
+            instance = buildVkInstanceReflective(pInstance.get(0), extensions);
+        } catch (Exception e) {
+            throw new RuntimeException("Gagal build VkInstance reflektif", e);
+        }
         Initializer.LOGGER.info("Vulkan instance created with {} extensions", extensions.size());
     }
 }

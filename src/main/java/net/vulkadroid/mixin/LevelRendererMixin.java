@@ -5,7 +5,6 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.level.ChunkPos;
 import net.vulkadroid.Initializer;
 import net.vulkadroid.render.chunk.WorldRenderer;
@@ -17,18 +16,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
-
-    @Inject(method = "renderChunkLayer", at = @At("HEAD"), cancellable = true, require = 0)
-    private void onRenderChunkLayer(
-            RenderType renderType,
-            double x, double y, double z,
-            Matrix4f frustumMatrix,
-            Matrix4f projectionMatrix,
-            CallbackInfo ci) {
-        if (!Initializer.isInitialized()) return;
-        WorldRenderer.renderLayer(renderType, x, y, z, frustumMatrix, projectionMatrix);
-        ci.cancel();
-    }
 
     @Inject(method = "renderLevel", at = @At("HEAD"))
     private void onRenderLevelHead(
