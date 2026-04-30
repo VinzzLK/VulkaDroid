@@ -30,9 +30,6 @@ public class LevelRendererMixin {
         ci.cancel();
     }
 
-    // 1.21.1: PoseStack + float partialTick + long finishNanoTime
-    //         → digabung jadi DeltaTracker
-    //         modelViewMatrix sekarang param terpisah
     @Inject(method = "renderLevel", at = @At("HEAD"))
     private void onRenderLevelHead(
             DeltaTracker deltaTracker,
@@ -58,15 +55,15 @@ public class LevelRendererMixin {
         WorldRenderer.onWorldChanged();
     }
 
-    // 1.21.1: parameter berubah dari (int cx, int cz) → (ChunkPos chunkPos)
     @Inject(method = "onChunkLoaded", at = @At("TAIL"))
     private void onChunkLoaded(ChunkPos chunkPos, CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         WorldRenderer.onChunkLoaded(chunkPos.x, chunkPos.z);
     }
 
+    // 1.21.1: boolean bl dihapus dari setSectionDirty
     @Inject(method = "setSectionDirty", at = @At("TAIL"))
-    private void onSectionDirty(int cx, int cy, int cz, boolean bl, CallbackInfo ci) {
+    private void onSectionDirty(int cx, int cy, int cz, CallbackInfo ci) {
         if (!Initializer.isInitialized()) return;
         WorldRenderer.markSectionDirty(cx, cy, cz);
     }

@@ -21,22 +21,36 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:0.16.0"
 
-    // Core LWJGL - compileOnly, Zalith supply natives sendiri
-    // Jangan bundle/include, bakal crash symbol mismatch
+    // ─── Core LWJGL ───────────────────────────────────────────────────────────
+    // compileOnly - Zalith supply semua natives-nya di runtime
+    // Jangan bundle, bakal crash symbol mismatch (UNSAFE field missing, dll)
     compileOnly "org.lwjgl:lwjgl:3.3.4"
     compileOnly "org.lwjgl:lwjgl-vulkan:3.3.4"
+    compileOnly "org.lwjgl:lwjgl-opengl:3.3.4"
+    compileOnly "org.lwjgl:lwjgl-glfw:3.3.4"
+    compileOnly "org.lwjgl:lwjgl-stb:3.3.4"
 
-    // VMA - Zalith tidak supply, aman di-bundle
+    // ─── VMA (Vulkan Memory Allocator) ────────────────────────────────────────
+    // Zalith TIDAK supply ini, aman di-bundle
     implementation "org.lwjgl:lwjgl-vma:3.3.3"
-    runtimeOnly "org.lwjgl:lwjgl-vma:3.3.3:natives-linux-arm64"
-    include "org.lwjgl:lwjgl-vma:3.3.3"
-    include "org.lwjgl:lwjgl-vma:3.3.3:natives-linux-arm64"
+    include       "org.lwjgl:lwjgl-vma:3.3.3"
+    // Natives - arm64 (Poco F3, kebanyakan device modern)
+    runtimeOnly   "org.lwjgl:lwjgl-vma:3.3.3:natives-linux-arm64"
+    include       "org.lwjgl:lwjgl-vma:3.3.3:natives-linux-arm64"
+    // Natives - arm32 (device lama)
+    runtimeOnly   "org.lwjgl:lwjgl-vma:3.3.3:natives-linux-arm32"
+    include       "org.lwjgl:lwjgl-vma:3.3.3:natives-linux-arm32"
 
-    // Shaderc - Zalith tidak supply, aman di-bundle
+    // ─── Shaderc (GLSL → SPIR-V compiler) ────────────────────────────────────
+    // Zalith TIDAK supply ini, aman di-bundle
     implementation "org.lwjgl:lwjgl-shaderc:3.3.3"
-    runtimeOnly "org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux-arm64"
-    include "org.lwjgl:lwjgl-shaderc:3.3.3"
-    include "org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux-arm64"
+    include        "org.lwjgl:lwjgl-shaderc:3.3.3"
+    // Natives arm64
+    runtimeOnly    "org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux-arm64"
+    include        "org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux-arm64"
+    // Natives arm32
+    runtimeOnly    "org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux-arm32"
+    include        "org.lwjgl:lwjgl-shaderc:3.3.3:natives-linux-arm32"
 }
 
 processResources {
