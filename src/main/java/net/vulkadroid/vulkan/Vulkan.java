@@ -67,77 +67,74 @@ public class Vulkan {
     }
 
     private static void createInstance() {
-        try (MemoryStack stack = stackPush()) {
+    try (MemoryStack stack = stackPush()) {
 
-            // ── VkApplicationInfo ─────────────────────────────────────────────
-            // Pakai calloc (tidak pakai UNSAFE), tapi setter-nya pakai UNSAFE
-            // → bypass semua setter dengan memPutInt/memPutLong langsung
-            VkApplicationInfo appInfo = VkApplicationInfo.calloc(stack);
-            long appInfoAddr = appInfo.address();
+        // AppInfo via memPut (sama seperti sebelumnya)
+        VkApplicationInfo appInfo = VkApplicationInfo.calloc(stack);
+        long appInfoAddr = appInfo.address();
+        ByteBuffer appNameBuf    = stack.UTF8("Minecraft");
+        ByteBuffer engineNameBuf = stack.UTF8("VulkaDroid");
+        memPutInt (appInfoAddr + VkApplicationInfo.STYPE,              VK_STRUCTURE_TYPE_APPLICATION_INFO);
+        memPutLong(appInfoAddr + VkApplicationInfo.PNEXT,              NULL);
+        memPutLong(appInfoAddr + VkApplicationInfo.PAPPLICATIONNAME,   memAddress(appNameBuf));
+        memPutInt (appInfoAddr + VkApplicationInfo.APPLICATIONVERSION, VK_MAKE_VERSION(1, 21, 1));
+        memPutLong(appInfoAddr + VkApplicationInfo.PENGINENAME,        memAddress(engineNameBuf));
+        memPutInt (appInfoAddr + VkApplicationInfo.ENGINEVERSION,      VK_MAKE_VERSION(1, 0, 0));
+        memPutInt (appInfoAddr + VkApplicationInfo.APIVERSION,         VK12.VK_API_VERSION_1_2);
 
-            ByteBuffer appNameBuf    = stack.UTF8("Minecraft");
-            ByteBuffer engineNameBuf = stack.UTF8("VulkaDroid");
+        // Extensions
+        List<String> extensions = getRequiredInstanceExtensions();
+        PointerBuffer pExtensions = stack.mallocPointer(extensions.size());
+        for (String ext : extensions) pExtensions.put(stack.UTF8(ext));
+        pExtensions.flip();
 
-            memPutInt (appInfoAddr + VkApplicationInfo.STYPE,              VK_STRUCTURE_TYPE_APPLICATION_INFO);
-            memPutLong(appInfoAddr + VkApplicationInfo.PNEXT,              NULL);
-            memPutLong(appInfoAddr + VkApplicationInfo.PAPPLICATIONNAME,   memAddress(appNameBuf));
-            memPutInt (appInfoAddr + VkApplicationInfo.APPLICATIONVERSION, VK_MAKE_VERSION(1, 21, 1));
-            memPutLong(appInfoAddr + VkApplicationInfo.PENGINENAME,        memAddress(engineNameBuf));
-            memPutInt (appInfoAddr + VkApplicationInfo.ENGINEVERSION,      VK_MAKE_VERSION(1, 0, 0));
-            memPutInt (appInfoAddr + VkApplicationInfo.APIVERSION,         VK12.VK_API_VERSION_1_2);
-
-            // ── Extensions ────────────────────────────────────────────────────
-            List<String> extensions = getRequiredInstanceExtensions();
-            PointerBuffer pExtensions = stack.mallocPointer(extensions.size());
-            for (String ext : extensions) pExtensions.put(stack.UTF8(ext));
-            pExtensions.flip();
-
-            // ── Validation layers (optional) ──────────────────────────────────
-            PointerBuffer pLayers = null;
-            if (ENABLE_VALIDATION && checkValidationLayerSupport()) {
-                pLayers = stack.mallocPointer(VALIDATION_LAYERS.length);
-                for (String layer : VALIDATION_LAYERS) pLayers.put(stack.UTF8(layer));
-                pLayers.flip();
-            }
-
-            // ── VkInstanceCreateInfo ──────────────────────────────────────────
-            VkInstanceCreateInfo createInfo = VkInstanceCreateInfo.calloc(stack);
-            long ciAddr = createInfo.address();
-
-            memPutInt (ciAddr + VkInstanceCreateInfo.STYPE,                   VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
-            memPutLong(ciAddr + VkInstanceCreateInfo.PNEXT,                   NULL);
-            memPutInt (ciAddr + VkInstanceCreateInfo.FLAGS,                    0);
-            memPutLong(ciAddr + VkInstanceCreateInfo.PAPPLICATIONINFO,         appInfoAddr);
-            memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDEXTENSIONCOUNT,    pExtensions.remaining());
-            memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDEXTENSIONNAMES,  memAddress(pExtensions));
-
-            if (pLayers != null) {
-                memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,    pLayers.remaining());
-                memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES,  memAddress(pLayers));
-            } else {
-                memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,    0);
-                memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES,  NULL);
-            }
-
-            // ── Debug pNext (opsional) ────────────────────────────────────────
-            if (ENABLE_VALIDATION) {
-                VkDebugUtilsMessengerCreateInfoEXT dbgInfo =
-                    VkDebugUtilsMessengerCreateInfoEXT.calloc(stack);
-                populateDebugMessengerCreateInfo(dbgInfo, stack);
-                memPutLong(ciAddr + VkInstanceCreateInfo.PNEXT, dbgInfo.address());
-            }
-
-            // ── vkCreateInstance ──────────────────────────────────────────────
-            PointerBuffer pInstance = stack.mallocPointer(1);
-            int result = vkCreateInstance(createInfo, null, pInstance);
-            if (result != VK_SUCCESS) {
-                throw new RuntimeException("Failed to create Vulkan instance. VkResult: " + result);
-            }
-
-            instance = new VkInstance(pInstance.get(0), createInfo);
-            Initializer.LOGGER.info("Vulkan instance created with {} extensions", extensions.size());
+        // Layers
+        PointerBuffer pLayers = null;
+        if (ENABLE_VALIDATION && checkValidationLayerSupport()) {
+            pLayers = stack.mallocPointer(VALIDATION_LAYERS.length);
+            for (String layer : VALIDATION_LAYERS) pLayers.put(stack.UTF8(layer));
+            pLayers.flip();
         }
+
+        // InstanceCreateInfo via memPut
+        VkInstanceCreateInfo createInfo = VkInstanceCreateInfo.calloc(stack);
+        long ciAddr = createInfo.address();
+        memPutInt (ciAddr + VkInstanceCreateInfo.STYPE,                  VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
+        memPutLong(ciAddr + VkInstanceCreateInfo.PNEXT,                  NULL);
+        memPutInt (ciAddr + VkInstanceCreateInfo.FLAGS,                   0);
+        memPutLong(ciAddr + VkInstanceCreateInfo.PAPPLICATIONINFO,        appInfoAddr);
+        memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDEXTENSIONCOUNT,   pExtensions.remaining());
+        memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDEXTENSIONNAMES, memAddress(pExtensions));
+        if (pLayers != null) {
+            memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,   pLayers.remaining());
+            memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES, memAddress(pLayers));
+        } else {
+            memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,   0);
+            memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES, NULL);
+        }
+
+        // ── Bypass vkCreateInstance wrapper yang panggil validate() ──────────
+        // vkCreateInstance() → nvkCreateInstance() → validate() → UNSAFE crash
+        // Kita panggil nvkCreateInstance langsung via reflection
+        PointerBuffer pInstance = stack.mallocPointer(1);
+        int result;
+        try {
+            java.lang.reflect.Method nMethod = VK10.class.getDeclaredMethod(
+                "nvkCreateInstance", long.class, long.class, long.class);
+            nMethod.setAccessible(true);
+            result = (int) nMethod.invoke(null, ciAddr, NULL, memAddress(pInstance));
+        } catch (Exception reflectEx) {
+            throw new RuntimeException("Failed to invoke nvkCreateInstance via reflection", reflectEx);
+        }
+
+        if (result != VK_SUCCESS) {
+            throw new RuntimeException("Failed to create Vulkan instance. VkResult: " + result);
+        }
+
+        instance = new VkInstance(pInstance.get(0), createInfo);
+        Initializer.LOGGER.info("Vulkan instance created with {} extensions", extensions.size());
     }
+}
 
     private static void populateDebugMessengerCreateInfo(
             VkDebugUtilsMessengerCreateInfoEXT info, MemoryStack stack) {
