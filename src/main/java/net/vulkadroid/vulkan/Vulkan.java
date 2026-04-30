@@ -2,7 +2,6 @@ package net.vulkadroid.vulkan;
 
 import net.vulkadroid.Initializer;
 import net.vulkadroid.android.AndroidDeviceDetector;
-import net.vulkadroid.config.Config;
 import net.vulkadroid.vulkan.device.DeviceManager;
 import net.vulkadroid.vulkan.memory.MemoryManager;
 import net.vulkadroid.vulkan.framebuffer.SwapChain;
@@ -11,6 +10,7 @@ import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.*;
 
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayList;
@@ -21,7 +21,6 @@ import static org.lwjgl.system.MemoryUtil.*;
 import static org.lwjgl.vulkan.EXTDebugUtils.*;
 import static org.lwjgl.vulkan.KHRAndroidSurface.*;
 import static org.lwjgl.vulkan.KHRSurface.*;
-import static org.lwjgl.vulkan.KHRSwapchain.*;
 import static org.lwjgl.vulkan.VK10.*;
 import static org.lwjgl.vulkan.VK11.*;
 import static org.lwjgl.vulkan.VK12.*;
@@ -35,6 +34,9 @@ public class Vulkan {
     private static long surface = VK_NULL_HANDLE;
     private static boolean initialized = false;
 
+    // Simpan reference callback agar tidak di-GC
+    private static VkDebugUtilsMessengerCallbackEXT debugCallback;
+
     private static final String[] VALIDATION_LAYERS = {
         "VK_LAYER_KHRONOS_validation"
     };
@@ -45,10 +47,13 @@ public class Vulkan {
         createInstance();
         if (ENABLE_VALIDATION) setupDebugMessenger();
         DeviceManager.initialize(instance);
-        MemoryManager.initialize(DeviceManager.getPhysicalDevice(), DeviceManager.getDevice(), instance);
+        MemoryManager.initialize(
+            DeviceManager.getPhysicalDevice(),
+            DeviceManager.getDevice(),
+            instance
+        );
         SwapChain.initialize();
 
-        // Hanya init RenderPass kalau SwapChain benar-benar siap
         if (SwapChain.getHandle() != VK_NULL_HANDLE && SwapChain.getImageViews() != null) {
             RenderPass.initialize();
         } else {
@@ -56,51 +61,73 @@ public class Vulkan {
         }
 
         Synchronization.initialize();
-
         initialized = true;
-        Initializer.LOGGER.info("Vulkan {} initialized on {}", getVulkanVersionString(), DeviceManager.getDeviceName());
+        Initializer.LOGGER.info("Vulkan {} initialized on {}",
+            getVulkanVersionString(), DeviceManager.getDeviceName());
     }
 
     private static void createInstance() {
         try (MemoryStack stack = stackPush()) {
-            VkApplicationInfo appInfo = VkApplicationInfo.calloc(stack);
-            appInfo.sType(VK_STRUCTURE_TYPE_APPLICATION_INFO);
-            appInfo.pApplicationName(stack.UTF8Safe("Minecraft"));
-            appInfo.applicationVersion(VK_MAKE_VERSION(1, 21, 1));
-            appInfo.pEngineName(stack.UTF8Safe("VulkaDroid"));
-            appInfo.engineVersion(VK_MAKE_VERSION(1, 0, 0));
-            appInfo.apiVersion(VK12.VK_API_VERSION_1_2);
 
+            // ── VkApplicationInfo ─────────────────────────────────────────────
+            // Pakai calloc (tidak pakai UNSAFE), tapi setter-nya pakai UNSAFE
+            // → bypass semua setter dengan memPutInt/memPutLong langsung
+            VkApplicationInfo appInfo = VkApplicationInfo.calloc(stack);
+            long appInfoAddr = appInfo.address();
+
+            ByteBuffer appNameBuf    = stack.UTF8("Minecraft");
+            ByteBuffer engineNameBuf = stack.UTF8("VulkaDroid");
+
+            memPutInt (appInfoAddr + VkApplicationInfo.STYPE,              VK_STRUCTURE_TYPE_APPLICATION_INFO);
+            memPutLong(appInfoAddr + VkApplicationInfo.PNEXT,              NULL);
+            memPutLong(appInfoAddr + VkApplicationInfo.PAPPLICATIONNAME,   memAddress(appNameBuf));
+            memPutInt (appInfoAddr + VkApplicationInfo.APPLICATIONVERSION, VK_MAKE_VERSION(1, 21, 1));
+            memPutLong(appInfoAddr + VkApplicationInfo.PENGINENAME,        memAddress(engineNameBuf));
+            memPutInt (appInfoAddr + VkApplicationInfo.ENGINEVERSION,      VK_MAKE_VERSION(1, 0, 0));
+            memPutInt (appInfoAddr + VkApplicationInfo.APIVERSION,         VK12.VK_API_VERSION_1_2);
+
+            // ── Extensions ────────────────────────────────────────────────────
             List<String> extensions = getRequiredInstanceExtensions();
             PointerBuffer pExtensions = stack.mallocPointer(extensions.size());
-            for (String ext : extensions) {
-                pExtensions.put(stack.UTF8(ext));
-            }
+            for (String ext : extensions) pExtensions.put(stack.UTF8(ext));
             pExtensions.flip();
 
+            // ── Validation layers (optional) ──────────────────────────────────
             PointerBuffer pLayers = null;
             if (ENABLE_VALIDATION && checkValidationLayerSupport()) {
                 pLayers = stack.mallocPointer(VALIDATION_LAYERS.length);
-                for (String layer : VALIDATION_LAYERS) {
-                    pLayers.put(stack.UTF8(layer));
-                }
+                for (String layer : VALIDATION_LAYERS) pLayers.put(stack.UTF8(layer));
                 pLayers.flip();
             }
 
+            // ── VkInstanceCreateInfo ──────────────────────────────────────────
             VkInstanceCreateInfo createInfo = VkInstanceCreateInfo.calloc(stack);
-            createInfo.sType(VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
-            createInfo.pApplicationInfo(appInfo);
-            createInfo.ppEnabledExtensionNames(pExtensions);
+            long ciAddr = createInfo.address();
+
+            memPutInt (ciAddr + VkInstanceCreateInfo.STYPE,                   VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
+            memPutLong(ciAddr + VkInstanceCreateInfo.PNEXT,                   NULL);
+            memPutInt (ciAddr + VkInstanceCreateInfo.FLAGS,                    0);
+            memPutLong(ciAddr + VkInstanceCreateInfo.PAPPLICATIONINFO,         appInfoAddr);
+            memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDEXTENSIONCOUNT,    pExtensions.remaining());
+            memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDEXTENSIONNAMES,  memAddress(pExtensions));
+
             if (pLayers != null) {
-                createInfo.ppEnabledLayerNames(pLayers);
+                memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,    pLayers.remaining());
+                memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES,  memAddress(pLayers));
+            } else {
+                memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,    0);
+                memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES,  NULL);
             }
 
+            // ── Debug pNext (opsional) ────────────────────────────────────────
             if (ENABLE_VALIDATION) {
-                VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = VkDebugUtilsMessengerCreateInfoEXT.calloc(stack);
-                populateDebugMessengerCreateInfo(debugCreateInfo);
-                createInfo.pNext(debugCreateInfo.address());
+                VkDebugUtilsMessengerCreateInfoEXT dbgInfo =
+                    VkDebugUtilsMessengerCreateInfoEXT.calloc(stack);
+                populateDebugMessengerCreateInfo(dbgInfo, stack);
+                memPutLong(ciAddr + VkInstanceCreateInfo.PNEXT, dbgInfo.address());
             }
 
+            // ── vkCreateInstance ──────────────────────────────────────────────
             PointerBuffer pInstance = stack.mallocPointer(1);
             int result = vkCreateInstance(createInfo, null, pInstance);
             if (result != VK_SUCCESS) {
@@ -109,6 +136,80 @@ public class Vulkan {
 
             instance = new VkInstance(pInstance.get(0), createInfo);
             Initializer.LOGGER.info("Vulkan instance created with {} extensions", extensions.size());
+        }
+    }
+
+    private static void populateDebugMessengerCreateInfo(
+            VkDebugUtilsMessengerCreateInfoEXT info, MemoryStack stack) {
+
+        // Buat callback terpisah dan simpan reference-nya agar tidak di-GC
+        debugCallback = VkDebugUtilsMessengerCallbackEXT.create(
+            (messageSeverity, messageTypes, pCallbackData, pUserData) -> {
+                VkDebugUtilsMessengerCallbackDataEXT data =
+                    VkDebugUtilsMessengerCallbackDataEXT.create(pCallbackData);
+                String msg = data.pMessageString();
+                if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0)
+                    Initializer.LOGGER.error("[Vulkan Validation] {}", msg);
+                else if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) != 0)
+                    Initializer.LOGGER.warn("[Vulkan Validation] {}", msg);
+                else
+                    Initializer.LOGGER.debug("[Vulkan Validation] {}", msg);
+                return VK_FALSE;
+            }
+        );
+
+        long addr = info.address();
+        memPutInt (addr + VkDebugUtilsMessengerCreateInfoEXT.STYPE,
+                   VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT);
+        memPutLong(addr + VkDebugUtilsMessengerCreateInfoEXT.PNEXT,   NULL);
+        memPutInt (addr + VkDebugUtilsMessengerCreateInfoEXT.FLAGS,    0);
+        memPutInt (addr + VkDebugUtilsMessengerCreateInfoEXT.MESSAGESEVERITY,
+                   VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                   VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                   VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT);
+        memPutInt (addr + VkDebugUtilsMessengerCreateInfoEXT.MESSAGETYPE,
+                   VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                   VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                   VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
+        memPutLong(addr + VkDebugUtilsMessengerCreateInfoEXT.PFNUSERCALLBACK,
+                   debugCallback.address());
+        memPutLong(addr + VkDebugUtilsMessengerCreateInfoEXT.PUSERDATA, NULL);
+    }
+
+    private static void setupDebugMessenger() {
+        try (MemoryStack stack = stackPush()) {
+            VkDebugUtilsMessengerCreateInfoEXT createInfo =
+                VkDebugUtilsMessengerCreateInfoEXT.calloc(stack);
+            populateDebugMessengerCreateInfo(createInfo, stack);
+
+            LongBuffer pDebugMessenger = stack.mallocLong(1);
+            if (vkCreateDebugUtilsMessengerEXT(instance, createInfo, null, pDebugMessenger)
+                    != VK_SUCCESS) {
+                Initializer.LOGGER.warn("Failed to set up debug messenger");
+                return;
+            }
+            debugMessenger = pDebugMessenger.get(0);
+        }
+    }
+
+    public static void createAndroidSurface(long nativeWindow) {
+        try (MemoryStack stack = stackPush()) {
+            VkAndroidSurfaceCreateInfoKHR createInfo =
+                VkAndroidSurfaceCreateInfoKHR.calloc(stack);
+            long addr = createInfo.address();
+
+            memPutInt (addr + VkAndroidSurfaceCreateInfoKHR.STYPE,
+                       VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR);
+            memPutLong(addr + VkAndroidSurfaceCreateInfoKHR.PNEXT,  NULL);
+            memPutInt (addr + VkAndroidSurfaceCreateInfoKHR.FLAGS,  0);
+            memPutLong(addr + VkAndroidSurfaceCreateInfoKHR.WINDOW, nativeWindow);
+
+            LongBuffer pSurface = stack.mallocLong(1);
+            int result = vkCreateAndroidSurfaceKHR(instance, createInfo, null, pSurface);
+            if (result != VK_SUCCESS) {
+                throw new RuntimeException("Failed to create Android surface. VkResult: " + result);
+            }
+            surface = pSurface.get(0);
         }
     }
 
@@ -121,9 +222,7 @@ public class Vulkan {
             extensions.add(KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME);
         }
         extensions.add("VK_KHR_get_physical_device_properties2");
-        if (ENABLE_VALIDATION) {
-            extensions.add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        }
+        if (ENABLE_VALIDATION) extensions.add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         return filterAvailableExtensions(extensions);
     }
 
@@ -131,7 +230,8 @@ public class Vulkan {
         try (MemoryStack stack = stackPush()) {
             IntBuffer pCount = stack.mallocInt(1);
             vkEnumerateInstanceExtensionProperties((String) null, pCount, null);
-            VkExtensionProperties.Buffer available = VkExtensionProperties.malloc(pCount.get(0), stack);
+            VkExtensionProperties.Buffer available =
+                VkExtensionProperties.malloc(pCount.get(0), stack);
             vkEnumerateInstanceExtensionProperties((String) null, pCount, available);
 
             List<String> filtered = new ArrayList<>();
@@ -151,16 +251,14 @@ public class Vulkan {
         try (MemoryStack stack = stackPush()) {
             IntBuffer pCount = stack.mallocInt(1);
             vkEnumerateInstanceLayerProperties(pCount, null);
-            VkLayerProperties.Buffer available = VkLayerProperties.malloc(pCount.get(0), stack);
+            VkLayerProperties.Buffer available =
+                VkLayerProperties.malloc(pCount.get(0), stack);
             vkEnumerateInstanceLayerProperties(pCount, available);
 
             for (String layer : VALIDATION_LAYERS) {
                 boolean found = false;
                 for (VkLayerProperties l : available) {
-                    if (l.layerNameString().equals(layer)) {
-                        found = true;
-                        break;
-                    }
+                    if (l.layerNameString().equals(layer)) { found = true; break; }
                 }
                 if (!found) return false;
             }
@@ -168,58 +266,12 @@ public class Vulkan {
         }
     }
 
-    private static void setupDebugMessenger() {
+    private static String getVulkanVersionString() {
         try (MemoryStack stack = stackPush()) {
-            VkDebugUtilsMessengerCreateInfoEXT createInfo = VkDebugUtilsMessengerCreateInfoEXT.calloc(stack);
-            populateDebugMessengerCreateInfo(createInfo);
-
-            LongBuffer pDebugMessenger = stack.mallocLong(1);
-            if (vkCreateDebugUtilsMessengerEXT(instance, createInfo, null, pDebugMessenger) != VK_SUCCESS) {
-                Initializer.LOGGER.warn("Failed to set up debug messenger");
-                return;
-            }
-            debugMessenger = pDebugMessenger.get(0);
-        }
-    }
-
-    private static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT createInfo) {
-        createInfo.sType(VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT);
-        createInfo.messageSeverity(
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
-        );
-        createInfo.messageType(
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
-        );
-        createInfo.pfnUserCallback((messageSeverity, messageTypes, pCallbackData, pUserData) -> {
-            VkDebugUtilsMessengerCallbackDataEXT callbackData = VkDebugUtilsMessengerCallbackDataEXT.create(pCallbackData);
-            String msg = callbackData.pMessageString();
-            if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0) {
-                Initializer.LOGGER.error("[Vulkan Validation] {}", msg);
-            } else if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) != 0) {
-                Initializer.LOGGER.warn("[Vulkan Validation] {}", msg);
-            } else {
-                Initializer.LOGGER.debug("[Vulkan Validation] {}", msg);
-            }
-            return VK_FALSE;
-        });
-    }
-
-    public static void createAndroidSurface(long nativeWindow) {
-        try (MemoryStack stack = stackPush()) {
-            VkAndroidSurfaceCreateInfoKHR createInfo = VkAndroidSurfaceCreateInfoKHR.calloc(stack);
-            createInfo.sType(VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR);
-            createInfo.window(nativeWindow);
-
-            LongBuffer pSurface = stack.mallocLong(1);
-            int result = vkCreateAndroidSurfaceKHR(instance, createInfo, null, pSurface);
-            if (result != VK_SUCCESS) {
-                throw new RuntimeException("Failed to create Android surface. VkResult: " + result);
-            }
-            surface = pSurface.get(0);
+            IntBuffer pVersion = stack.mallocInt(1);
+            vkEnumerateInstanceVersion(pVersion);
+            int ver = pVersion.get(0);
+            return VK_VERSION_MAJOR(ver) + "." + VK_VERSION_MINOR(ver) + "." + VK_VERSION_PATCH(ver);
         }
     }
 
@@ -238,6 +290,10 @@ public class Vulkan {
             vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, null);
             debugMessenger = VK_NULL_HANDLE;
         }
+        if (debugCallback != null) {
+            debugCallback.free();
+            debugCallback = null;
+        }
         if (instance != null) {
             vkDestroyInstance(instance, null);
             instance = null;
@@ -245,17 +301,8 @@ public class Vulkan {
         initialized = false;
     }
 
-    private static String getVulkanVersionString() {
-        try (MemoryStack stack = stackPush()) {
-            IntBuffer pVersion = stack.mallocInt(1);
-            vkEnumerateInstanceVersion(pVersion);
-            int ver = pVersion.get(0);
-            return VK_VERSION_MAJOR(ver) + "." + VK_VERSION_MINOR(ver) + "." + VK_VERSION_PATCH(ver);
-        }
-    }
-
-    public static VkInstance getInstance() { return instance; }
-    public static long getSurface() { return surface; }
-    public static boolean isInitialized() { return initialized; }
-    public static void setSurface(long s) { surface = s; }
+    public static VkInstance getInstance()  { return instance; }
+    public static long getSurface()         { return surface; }
+    public static boolean isInitialized()   { return initialized; }
+    public static void setSurface(long s)   { surface = s; }
 }
