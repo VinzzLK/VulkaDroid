@@ -286,38 +286,83 @@ public class Vulkan {
     private static VkInstance buildVkInstanceReflective(long handle, List<String> exts) throws Exception {
         sun.misc.Unsafe jvmUnsafe = getJvmUnsafe();
 
-        // Allocate tanpa constructor
+        // 1. Allocate VkInstance tanpa constructor
         @SuppressWarnings("unchecked")
         VkInstance inst = (VkInstance) jvmUnsafe.allocateInstance(VkInstance.class);
-
-        // Set field 'address' dari Pointer.Default (superclass)
         setFieldInHierarchy(inst, "address", handle);
 
-        // Bangun VKCapabilitiesInstance menggunakan vkGetInstanceProcAddr
+        // 2. Resolve vkGetInstanceProcAddr
         long getProcFP = resolveVkGetInstanceProcAddr();
-        org.lwjgl.system.FunctionProvider fp = funcName ->
-            org.lwjgl.system.JNI.callPPP(handle,
-                org.lwjgl.system.MemoryUtil.memAddress(funcName), getProcFP);
+        Initializer.LOGGER.info("[VulkaDroid] vkGetInstanceProcAddr FP: 0x{}", Long.toHexString(getProcFP));
 
-        java.util.Set<String> extSet = new java.util.HashSet<>(exts);
-        // Constructor VKCapabilitiesInstance bersifat package-private, harus pakai refleksi
-        VKCapabilitiesInstance caps;
-        try {
-            java.lang.reflect.Constructor<VKCapabilitiesInstance> ctor =
-                VKCapabilitiesInstance.class.getDeclaredConstructor(
-                    org.lwjgl.system.FunctionProvider.class, int.class,
-                    java.util.Set.class, java.util.Set.class);
-            ctor.setAccessible(true);
-            caps = ctor.newInstance(fp, VK12.VK_API_VERSION_1_2, extSet, new java.util.HashSet<>());
-        } catch (Exception e) {
-            throw new RuntimeException("Gagal buat VKCapabilitiesInstance via refleksi", e);
+        // 3. Allocate VKCapabilitiesInstance TANPA constructor (bypass UNSAFE fields)
+        @SuppressWarnings("unchecked")
+        VKCapabilitiesInstance caps = (VKCapabilitiesInstance) jvmUnsafe.allocateInstance(VKCapabilitiesInstance.class);
+
+        // 4. Populate tiap field 'long' yang nama-nya dimulai 'vk' secara individual
+        //    Ini JAUH lebih reliable daripada pakai FunctionProvider ke constructor,
+        //    karena kita kontrol langsung tiap lookup.
+        int resolved = 0, failed = 0;
+        for (java.lang.reflect.Field field : VKCapabilitiesInstance.class.getDeclaredFields()) {
+            if (field.getType() != long.class) continue;
+            String fname = field.getName();
+            if (!fname.startsWith("vk")) continue;
+            field.setAccessible(true);
+            long fp = lookupInstanceFP(getProcFP, handle, fname);
+            field.setLong(caps, fp);
+            if (fp != 0L) resolved++;
+            else { failed++; Initializer.LOGGER.debug("[VulkaDroid] Null FP: {}", fname); }
         }
 
-        // Set field 'capabilities' dari DispatchableHandleInstance
+        // 5. Set version/extension boolean flags via refleksi
+        java.util.Set<String> extSet = new java.util.HashSet<>(exts);
+        setBoolField(jvmUnsafe, caps, "Vulkan10", true);
+        setBoolField(jvmUnsafe, caps, "Vulkan11", true);
+        setBoolField(jvmUnsafe, caps, "Vulkan12", true);
+        for (java.lang.reflect.Field field : VKCapabilitiesInstance.class.getDeclaredFields()) {
+            if (field.getType() != boolean.class) continue;
+            String fname = field.getName();
+            // Extension flag: VK_KHR_surface → check se extSet
+            if (extSet.contains(toLWJGLExtName(fname))) {
+                field.setAccessible(true);
+                field.setBoolean(caps, true);
+            }
+        }
+
+        // 6. Set capabilities ke VkInstance
         setFieldInHierarchy(inst, "capabilities", caps);
 
-        Initializer.LOGGER.info("[VulkaDroid] VkInstance built reflectively. Handle: 0x{}", Long.toHexString(handle));
+        Initializer.LOGGER.info("[VulkaDroid] VkInstance built. Handle: 0x{} | FPs resolved={} null={}",
+            Long.toHexString(handle), resolved, failed);
         return inst;
+    }
+
+    /** Translate LWJGL field name (VK_KHR_surface) ke extension string (VK_KHR_surface). */
+    private static String toLWJGLExtName(String fieldName) {
+        // LWJGL field names match extension strings directly for boolean capability fields
+        return fieldName;
+    }
+
+    private static void setBoolField(sun.misc.Unsafe unsafe, Object obj, String name, boolean val) {
+        try {
+            java.lang.reflect.Field f = obj.getClass().getDeclaredField(name);
+            f.setAccessible(true);
+            f.setBoolean(obj, val);
+        } catch (Throwable ignored) {}
+    }
+
+    /**
+     * Lookup satu function pointer via vkGetInstanceProcAddr.
+     * Pakai MemoryStack untuk null-terminated string — TIDAK bergantung pada
+     * FunctionProvider interface yang prone to bugs.
+     */
+    private static long lookupInstanceFP(long procAddrFP, long instance, String funcName) {
+        try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            java.nio.ByteBuffer buf = stack.ASCII(funcName, true); // null-terminated
+            long nameAddr = org.lwjgl.system.MemoryUtil.memAddress(buf);
+            // vkGetInstanceProcAddr(instance, pName) → function pointer
+            return org.lwjgl.system.JNI.callPPP(instance, nameAddr, procAddrFP);
+        }
     }
 
     private static sun.misc.Unsafe getJvmUnsafe() throws Exception {
