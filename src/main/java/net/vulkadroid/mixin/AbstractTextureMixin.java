@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class AbstractTextureMixin {
     @Inject(method = "releaseId", at = @At("HEAD"))
     private void onReleaseId(CallbackInfo ci) {
+        if (!net.vulkadroid.Initializer.isInitialized()) return;
         VTextureSelector.unregisterTexture(((AbstractTexture)(Object)this).getId());
     }
 }

@@ -68,6 +68,14 @@ public class Vulkan {
     }
 
     private static void createInstance() {
+    // Cek dulu apakah LWJGL Vulkan JAR tersedia (butuh vulkanmod-an-libs atau lwjgl-vulkan di classpath)
+    try {
+        Class.forName("org.lwjgl.vulkan.VkApplicationInfo");
+    } catch (ClassNotFoundException e) {
+        throw new RuntimeException(
+            "LWJGL Vulkan classes tidak ditemukan! Pastikan mod 'vulkanmod-an-libs' ada di mods folder. " +
+            "VulkaDroid butuh lwjgl-vulkan JAR untuk init Vulkan.", e);
+    }
     try (MemoryStack stack = stackPush()) {
 
         // AppInfo via memPut (sama seperti sebelumnya)

@@ -12,16 +12,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// MC 1.21.1 signature: renderBreakingTexture(BlockState, BlockPos, BlockAndTintGetter, PoseStack, MultiBufferSource.BufferSource)
-// BakedModel DIHAPUS (tidak ada di 1.21.1), MultiBufferSource → MultiBufferSource.BufferSource
+// class_4588 = MultiBufferSource (INTERFACE, bukan BufferSource subclass)
+// class_4597$class_4598 = RenderBuffers$BufferSource (SALAH)
 @Mixin(BlockRenderDispatcher.class)
 public class BlockRenderDispatcherMixin {
 
-    @Inject(method = "renderBreakingTexture", at = @At("HEAD"))
+    @Inject(method = "renderBreakingTexture", at = @At("HEAD"), require = 0)
     private void onRenderBreaking(BlockState state, BlockPos pos,
             BlockAndTintGetter level,
             PoseStack poseStack,
-            MultiBufferSource.BufferSource bufferSource,
+            MultiBufferSource bufferSource,
             CallbackInfo ci) {
         if (!net.vulkadroid.Initializer.isInitialized()) return;
         PipelineManager.bindPipeline("terrain_translucent");
