@@ -7,8 +7,8 @@ import net.vulkadroid.vulkan.memory.MemoryManager;
 import net.vulkadroid.vulkan.framebuffer.SwapChain;
 import net.vulkadroid.vulkan.framebuffer.RenderPass;
 import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.Configuration;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.vulkan.*;
 
 import java.nio.ByteBuffer;
@@ -35,7 +35,6 @@ public class Vulkan {
     private static long surface = VK_NULL_HANDLE;
     private static boolean initialized = false;
 
-    // Simpan reference callback agar tidak di-GC
     private static VkDebugUtilsMessengerCallbackEXT debugCallback;
 
     private static final String[] VALIDATION_LAYERS = {
@@ -68,90 +67,77 @@ public class Vulkan {
     }
 
     private static void createInstance() {
-    // Cek dulu apakah LWJGL Vulkan JAR tersedia (butuh vulkanmod-an-libs atau lwjgl-vulkan di classpath)
-    try {
-        Class.forName("org.lwjgl.vulkan.VkApplicationInfo");
-    } catch (ClassNotFoundException e) {
-        throw new RuntimeException(
-            "LWJGL Vulkan classes tidak ditemukan! Pastikan mod 'vulkanmod-an-libs' ada di mods folder. " +
-            "VulkaDroid butuh lwjgl-vulkan JAR untuk init Vulkan.", e);
-    }
-    try (MemoryStack stack = stackPush()) {
-
-        // AppInfo via memPut (sama seperti sebelumnya)
-        VkApplicationInfo appInfo = VkApplicationInfo.calloc(stack);
-        long appInfoAddr = appInfo.address();
-        ByteBuffer appNameBuf    = stack.UTF8("Minecraft");
-        ByteBuffer engineNameBuf = stack.UTF8("VulkaDroid");
-        memPutInt (appInfoAddr + VkApplicationInfo.STYPE,              VK_STRUCTURE_TYPE_APPLICATION_INFO);
-        memPutLong(appInfoAddr + VkApplicationInfo.PNEXT,              NULL);
-        memPutLong(appInfoAddr + VkApplicationInfo.PAPPLICATIONNAME,   memAddress(appNameBuf));
-        memPutInt (appInfoAddr + VkApplicationInfo.APPLICATIONVERSION, VK_MAKE_VERSION(1, 21, 1));
-        memPutLong(appInfoAddr + VkApplicationInfo.PENGINENAME,        memAddress(engineNameBuf));
-        memPutInt (appInfoAddr + VkApplicationInfo.ENGINEVERSION,      VK_MAKE_VERSION(1, 0, 0));
-        memPutInt (appInfoAddr + VkApplicationInfo.APIVERSION,         VK12.VK_API_VERSION_1_2);
-
-        // Extensions
-        List<String> extensions = getRequiredInstanceExtensions();
-        PointerBuffer pExtensions = stack.mallocPointer(extensions.size());
-        for (String ext : extensions) pExtensions.put(stack.UTF8(ext));
-        pExtensions.flip();
-
-        // Layers
-        PointerBuffer pLayers = null;
-        if (ENABLE_VALIDATION && checkValidationLayerSupport()) {
-            pLayers = stack.mallocPointer(VALIDATION_LAYERS.length);
-            for (String layer : VALIDATION_LAYERS) pLayers.put(stack.UTF8(layer));
-            pLayers.flip();
-        }
-
-        // InstanceCreateInfo via memPut
-        VkInstanceCreateInfo createInfo = VkInstanceCreateInfo.calloc(stack);
-        long ciAddr = createInfo.address();
-        memPutInt (ciAddr + VkInstanceCreateInfo.STYPE,                  VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
-        memPutLong(ciAddr + VkInstanceCreateInfo.PNEXT,                  NULL);
-        memPutInt (ciAddr + VkInstanceCreateInfo.FLAGS,                   0);
-        memPutLong(ciAddr + VkInstanceCreateInfo.PAPPLICATIONINFO,        appInfoAddr);
-        memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDEXTENSIONCOUNT,   pExtensions.remaining());
-        memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDEXTENSIONNAMES, memAddress(pExtensions));
-        if (pLayers != null) {
-            memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,   pLayers.remaining());
-            memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES, memAddress(pLayers));
-        } else {
-            memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,   0);
-            memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES, NULL);
-        }
-
-        // ── Bypass vkCreateInstance wrapper yang panggil validate() ──────────
-        // Masalah: nvkCreateInstance() → validate() → nenabledLayerCount() → UNSAFE field crash
-        // UNSAFE field tidak ada di custom LWJGL JAR dari vulkanmod-an-libs
-        //
-        // Fix: Panggil JNI.callPPPI langsung pakai function pointer dari VK global commands.
-        // Ini sepenuhnya skip semua Java wrapper + validate() milik LWJGL.
-        PointerBuffer pInstance = stack.mallocPointer(1);
-        int result;
-        long fp = resolveFunctionPointerVkCreateInstance();
-        result = org.lwjgl.system.JNI.callPPPI(ciAddr, NULL, memAddress(pInstance), fp);
-
-        if (result != VK_SUCCESS) {
-            throw new RuntimeException("Failed to create Vulkan instance. VkResult: " + result);
-        }
-
-        // new VkInstance(handle, createInfo) juga crash: VkApplicationInfo.apiVersion() pakai UNSAFE
-        // Solusi: buat VkInstance via Unsafe.allocateInstance + set fields manual
         try {
-            instance = buildVkInstanceReflective(pInstance.get(0), extensions);
-        } catch (Exception e) {
-            throw new RuntimeException("Gagal build VkInstance reflektif", e);
+            Class.forName("org.lwjgl.vulkan.VkApplicationInfo");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(
+                "LWJGL Vulkan classes tidak ditemukan! Pastikan mod 'vulkanmod-an-libs' ada di mods folder. " +
+                "VulkaDroid butuh lwjgl-vulkan JAR untuk init Vulkan.", e);
         }
-        Initializer.LOGGER.info("Vulkan instance created with {} extensions", extensions.size());
+        try (MemoryStack stack = stackPush()) {
+
+            // AppInfo via memPut (raw memory, no UNSAFE struct accessors)
+            VkApplicationInfo appInfo = VkApplicationInfo.calloc(stack);
+            long appInfoAddr = appInfo.address();
+            ByteBuffer appNameBuf    = stack.UTF8("Minecraft");
+            ByteBuffer engineNameBuf = stack.UTF8("VulkaDroid");
+            memPutInt (appInfoAddr + VkApplicationInfo.STYPE,              VK_STRUCTURE_TYPE_APPLICATION_INFO);
+            memPutLong(appInfoAddr + VkApplicationInfo.PNEXT,              NULL);
+            memPutLong(appInfoAddr + VkApplicationInfo.PAPPLICATIONNAME,   memAddress(appNameBuf));
+            memPutInt (appInfoAddr + VkApplicationInfo.APPLICATIONVERSION, VK_MAKE_VERSION(1, 21, 1));
+            memPutLong(appInfoAddr + VkApplicationInfo.PENGINENAME,        memAddress(engineNameBuf));
+            memPutInt (appInfoAddr + VkApplicationInfo.ENGINEVERSION,      VK_MAKE_VERSION(1, 0, 0));
+            memPutInt (appInfoAddr + VkApplicationInfo.APIVERSION,         VK12.VK_API_VERSION_1_2);
+
+            List<String> extensions = getRequiredInstanceExtensions();
+            PointerBuffer pExtensions = stack.mallocPointer(extensions.size());
+            for (String ext : extensions) pExtensions.put(stack.UTF8(ext));
+            pExtensions.flip();
+
+            PointerBuffer pLayers = null;
+            if (ENABLE_VALIDATION && checkValidationLayerSupport()) {
+                pLayers = stack.mallocPointer(VALIDATION_LAYERS.length);
+                for (String layer : VALIDATION_LAYERS) pLayers.put(stack.UTF8(layer));
+                pLayers.flip();
+            }
+
+            VkInstanceCreateInfo createInfo = VkInstanceCreateInfo.calloc(stack);
+            long ciAddr = createInfo.address();
+            memPutInt (ciAddr + VkInstanceCreateInfo.STYPE,                  VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
+            memPutLong(ciAddr + VkInstanceCreateInfo.PNEXT,                  NULL);
+            memPutInt (ciAddr + VkInstanceCreateInfo.FLAGS,                   0);
+            memPutLong(ciAddr + VkInstanceCreateInfo.PAPPLICATIONINFO,        appInfoAddr);
+            memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDEXTENSIONCOUNT,   pExtensions.remaining());
+            memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDEXTENSIONNAMES, memAddress(pExtensions));
+            if (pLayers != null) {
+                memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,   pLayers.remaining());
+                memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES, memAddress(pLayers));
+            } else {
+                memPutInt (ciAddr + VkInstanceCreateInfo.ENABLEDLAYERCOUNT,   0);
+                memPutLong(ciAddr + VkInstanceCreateInfo.PPENABLEDLAYERNAMES, NULL);
+            }
+
+            PointerBuffer pInstance = stack.mallocPointer(1);
+            int result;
+            long fp = resolveFunctionPointerVkCreateInstance();
+            result = org.lwjgl.system.JNI.callPPPI(ciAddr, NULL, memAddress(pInstance), fp);
+
+            if (result != VK_SUCCESS) {
+                throw new RuntimeException("Failed to create Vulkan instance. VkResult: " + result);
+            }
+
+            try {
+                instance = buildVkInstanceReflective(pInstance.get(0), extensions);
+            } catch (Exception e) {
+                throw new RuntimeException("Gagal build VkInstance reflektif", e);
+            }
+            Initializer.LOGGER.info("Vulkan instance created with {} extensions", extensions.size());
+        }
     }
-}
 
     private static void populateDebugMessengerCreateInfo(
             VkDebugUtilsMessengerCreateInfoEXT info, MemoryStack stack) {
 
-        // Buat callback terpisah dan simpan reference-nya agar tidak di-GC
         debugCallback = VkDebugUtilsMessengerCallbackEXT.create(
             (messageSeverity, messageTypes, pCallbackData, pUserData) -> {
                 VkDebugUtilsMessengerCallbackDataEXT data =
@@ -285,31 +271,23 @@ public class Vulkan {
     }
 
     /**
-     * Buat VkInstance TANPA memanggil konstruktor LWJGL standar.
-     * new VkInstance(handle, createInfo) → getInstanceCapabilities → VkApplicationInfo.apiVersion()
-     * → napiVersion() → UNSAFE field crash karena custom LWJGL JAR stripped.
-     *
-     * Fix: allocateInstance via JVM Unsafe, set fields 'address' dan 'capabilities' reflektif.
+     * Build VkInstance TANPA memanggil konstruktor LWJGL standar.
+     * new VkInstance(handle, createInfo) crashes karena getInstanceCapabilities -> VkApplicationInfo.apiVersion()
+     * -> napiVersion() -> UNSAFE field crash.
      */
     private static VkInstance buildVkInstanceReflective(long handle, List<String> exts) throws Exception {
         sun.misc.Unsafe jvmUnsafe = getJvmUnsafe();
 
-        // 1. Allocate VkInstance tanpa constructor
         @SuppressWarnings("unchecked")
         VkInstance inst = (VkInstance) jvmUnsafe.allocateInstance(VkInstance.class);
         setFieldInHierarchy(inst, "address", handle);
 
-        // 2. Resolve vkGetInstanceProcAddr
         long getProcFP = resolveVkGetInstanceProcAddr();
         Initializer.LOGGER.info("[VulkaDroid] vkGetInstanceProcAddr FP: 0x{}", Long.toHexString(getProcFP));
 
-        // 3. Allocate VKCapabilitiesInstance TANPA constructor (bypass UNSAFE fields)
         @SuppressWarnings("unchecked")
         VKCapabilitiesInstance caps = (VKCapabilitiesInstance) jvmUnsafe.allocateInstance(VKCapabilitiesInstance.class);
 
-        // 4. Populate tiap field 'long' yang nama-nya dimulai 'vk' secara individual
-        //    Ini JAUH lebih reliable daripada pakai FunctionProvider ke constructor,
-        //    karena kita kontrol langsung tiap lookup.
         int resolved = 0, failed = 0;
         for (java.lang.reflect.Field field : VKCapabilitiesInstance.class.getDeclaredFields()) {
             if (field.getType() != long.class) continue;
@@ -322,7 +300,6 @@ public class Vulkan {
             else { failed++; Initializer.LOGGER.debug("[VulkaDroid] Null FP: {}", fname); }
         }
 
-        // 5. Set version/extension boolean flags via refleksi
         java.util.Set<String> extSet = new java.util.HashSet<>(exts);
         setBoolField(jvmUnsafe, caps, "Vulkan10", true);
         setBoolField(jvmUnsafe, caps, "Vulkan11", true);
@@ -330,14 +307,12 @@ public class Vulkan {
         for (java.lang.reflect.Field field : VKCapabilitiesInstance.class.getDeclaredFields()) {
             if (field.getType() != boolean.class) continue;
             String fname = field.getName();
-            // Extension flag: VK_KHR_surface → check se extSet
             if (extSet.contains(toLWJGLExtName(fname))) {
                 field.setAccessible(true);
                 field.setBoolean(caps, true);
             }
         }
 
-        // 6. Set capabilities ke VkInstance
         setFieldInHierarchy(inst, "capabilities", caps);
 
         Initializer.LOGGER.info("[VulkaDroid] VkInstance built. Handle: 0x{} | FPs resolved={} null={}",
@@ -345,9 +320,7 @@ public class Vulkan {
         return inst;
     }
 
-    /** Translate LWJGL field name (VK_KHR_surface) ke extension string (VK_KHR_surface). */
     private static String toLWJGLExtName(String fieldName) {
-        // LWJGL field names match extension strings directly for boolean capability fields
         return fieldName;
     }
 
@@ -359,16 +332,10 @@ public class Vulkan {
         } catch (Throwable ignored) {}
     }
 
-    /**
-     * Lookup satu function pointer via vkGetInstanceProcAddr.
-     * Pakai MemoryStack untuk null-terminated string — TIDAK bergantung pada
-     * FunctionProvider interface yang prone to bugs.
-     */
     private static long lookupInstanceFP(long procAddrFP, long instance, String funcName) {
         try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
-            java.nio.ByteBuffer buf = stack.ASCII(funcName, true); // null-terminated
+            java.nio.ByteBuffer buf = stack.ASCII(funcName, true);
             long nameAddr = org.lwjgl.system.MemoryUtil.memAddress(buf);
-            // vkGetInstanceProcAddr(instance, pName) → function pointer
             return org.lwjgl.system.JNI.callPPP(instance, nameAddr, procAddrFP);
         }
     }
@@ -409,16 +376,7 @@ public class Vulkan {
         throw new RuntimeException("Tidak bisa resolve vkGetInstanceProcAddr");
     }
 
-    /**
-     * Mendapatkan function pointer vkCreateInstance tanpa melalui LWJGL validate().
-     *
-     * Strategy:
-     *  1. Refleksi ke VK.getGlobalCommands() (LWJGL internal) untuk baca field long.
-     *     Ini aman karena kita TIDAK memanggil metode yang ada validate()-nya.
-     *  2. Fallback: Library.loadNative("vulkan") dan cari simbol manual.
-     */
     private static long resolveFunctionPointerVkCreateInstance() {
-        // --- Strategy 1: LWJGL VK.getGlobalCommands().vkCreateInstance ---
         try {
             Class<?> vkClass = Class.forName("org.lwjgl.vulkan.VK");
             java.lang.reflect.Method getGlobal = vkClass.getDeclaredMethod("getGlobalCommands");
@@ -435,7 +393,6 @@ public class Vulkan {
             Initializer.LOGGER.warn("[VulkaDroid] Strategy 1 (VK.getGlobalCommands) gagal: {}", e.getMessage());
         }
 
-        // --- Strategy 2: Library.loadNative("vulkan") ---
         try {
             org.lwjgl.system.SharedLibrary lib =
                 org.lwjgl.system.Library.loadNative(

@@ -16,6 +16,7 @@ public class Initializer implements ClientModInitializer {
     public static final String MOD_ID = "vulkadroid";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static boolean initialized = false;
+    public static boolean vulkanFailed = false;
 
     @Override
     public void onInitializeClient() {
@@ -40,15 +41,21 @@ public class Initializer implements ClientModInitializer {
 
             Vulkan.initialize();
             initialized = true;
+            vulkanFailed = false;
             LOGGER.info("VulkaDroid initialized successfully - Vulkan backend active");
 
         } catch (Throwable e) {
             LOGGER.error("VulkaDroid failed to initialize! Falling back to OpenGL.", e);
             initialized = false;
+            vulkanFailed = true;
         }
     }
 
     public static boolean isInitialized() {
         return initialized;
+    }
+
+    public static boolean isVulkanFailed() {
+        return vulkanFailed;
     }
 }

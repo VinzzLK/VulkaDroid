@@ -1,7 +1,7 @@
 package net.vulkadroid.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.MultiBufferSource;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockAndTintGetter;
@@ -12,16 +12,27 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// class_4588 = MultiBufferSource (INTERFACE, bukan BufferSource subclass)
-// class_4597$class_4598 = RenderBuffers$BufferSource (SALAH)
+/**
+ * renderBreakingTexture signature in 1.21.1 Mojang mappings:
+ * void renderBreakingTexture(BlockState state, BlockPos pos, BlockAndTintGetter level,
+ *     PoseStack poseStack, VertexConsumer vertexConsumer, CallbackInfo ci)
+ *
+ * class_4588 = VertexConsumer (correct parameter type)
+ * class_4597 = MultiBufferSource (WRONG - this is what caused InvalidInjectionException)
+ */
 @Mixin(BlockRenderDispatcher.class)
 public class BlockRenderDispatcherMixin {
 
-    @Inject(method = "renderBreakingTexture", at = @At("HEAD"), require = 0)
+    @Inject(
+        method = "renderBreakingTexture(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/BlockAndTintGetter;Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;)V",
+        at = @At("HEAD"),
+        require = 0,
+        cancellable = false
+    )
     private void onRenderBreaking(BlockState state, BlockPos pos,
             BlockAndTintGetter level,
             PoseStack poseStack,
-            MultiBufferSource bufferSource,
+            VertexConsumer vertexConsumer,
             CallbackInfo ci) {
         if (!net.vulkadroid.Initializer.isInitialized()) return;
         PipelineManager.bindPipeline("terrain_translucent");
